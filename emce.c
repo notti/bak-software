@@ -368,6 +368,8 @@ static irqreturn_t edev_isr(int irq, void *dev_id)
     status = in_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET);
     out_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET, status);
 
+    dev_info(dev,"got intr 0x%x",status);
+
 //    sysfs_notify(&dev->kobj, NULL, "intr"); // dir attr
 
     return IRQ_HANDLED;
