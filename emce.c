@@ -14,7 +14,7 @@
 #include <asm/uaccess.h>
 
 #define DRIVER_NAME "emce"
-#define USER_MEM 3
+#define USER_MEM 4
 
 #define EMCE_INTR_DISR_OFFSET  0x00000200
 #define EMCE_INTR_DIER_OFFSET  0x00000208
@@ -49,115 +49,313 @@ struct emce_device
     unsigned int irq;
 };
 
-static ssize_t led_show(struct device *dev, struct device_attribute *attr,
-        char *buf)
-{
-    struct emce_device *edev = dev_get_drvdata(dev);
-    u8 val;
-    unsigned int led = 0;
-    sscanf(attr->attr.name, "%d",&led);
-    led = 7-led;
+#define RECEIVERS 3
+#define __RECEIVER(_name, _num, _acc, _bit, _len) \
+static ssize_t _name##_receiver_##_num##_show(struct device *dev, struct device_attribute *attr, \
+        char *buf) \
+{ \
+    struct emce_device *edev = dev_get_drvdata(dev); \
+    u8 val = in_8(edev->base_address+RECEIVERS-_num) >> _bit; \
+    return snprintf(buf,PAGE_SIZE,"%hhu\n",val & ((1<<(_len))-1)); \
+}\
+\
+static ssize_t _name##_receiver_##_num##_store(struct device *dev, struct device_attribute *attr,\
+        const char *buf, size_t count)\
+{\
+    struct emce_device *edev = dev_get_drvdata(dev);\
+    u8 val;\
+    u8 valnew = 0;\
+    sscanf(buf,"%hhu",&valnew);\
+    if(valnew>>_len)\
+        return -EINVAL;\
+    spin_lock(&edev->register_lock);\
+    val = in_8(edev->base_address+RECEIVERS-_num);\
+    val &= ~(((1<<(_len))-1) << _bit);\
+    val |= valnew << _bit;\
+    out_8(edev->base_address+RECEIVERS-_num,val);\
+    spin_unlock(&edev->register_lock);\
+    return count;\
+}\
+\
+struct device_attribute dev_attr_##_name##_receiver_##_num = __ATTR(_name, _acc, _name##_receiver_##_num##_show, _name##_receiver_##_num##_store);
 
-    val = in_8(edev->base_address+3);
-    if(val & (1<<led))
-        return sprintf(buf,"1");
-    return sprintf(buf,"0");
+#define RECEIVER(_name, _acc, _bit, _len) \
+__RECEIVER(_name, 0, _acc, _bit, _len)\
+__RECEIVER(_name, 1, _acc, _bit, _len)\
+__RECEIVER(_name, 2, _acc, _bit, _len)
+
+RECEIVER(enable, (S_IRUGO|S_IWUGO), 0, 1)
+RECEIVER(polarity, (S_IRUGO|S_IWUGO), 1, 1)
+RECEIVER(descramble, (S_IRUGO|S_IWUGO), 2, 1)
+RECEIVER(rxeqmix, (S_IRUGO|S_IWUGO), 3, 2)
+RECEIVER(data_valid, S_IRUGO, 5, 1)
+
+#define RECEIVER_ATTRS(_num) \
+static struct attribute *receiver_attrs_##_num[] = { \
+    &dev_attr_enable_receiver_##_num.attr, \
+    &dev_attr_polarity_receiver_##_num.attr,\
+    &dev_attr_descramble_receiver_##_num.attr,\
+    &dev_attr_rxeqmix_receiver_##_num.attr,\
+    &dev_attr_data_valid_receiver_##_num.attr,\
+    NULL,\
+};
+
+RECEIVER_ATTRS(0)
+RECEIVER_ATTRS(1)
+RECEIVER_ATTRS(2)
+
+static ssize_t input_show(struct device *dev, struct device_attribute *attr, 
+        char *buf) 
+{ 
+    struct emce_device *edev = dev_get_drvdata(dev); 
+    u8 val = in_8(edev->base_address) & 0x03;
+    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
 }
 
-static ssize_t led_store(struct device *dev, struct device_attribute *attr,
+static ssize_t input_store(struct device *dev, struct device_attribute *attr,
         const char *buf, size_t count)
 {
     struct emce_device *edev = dev_get_drvdata(dev);
     u8 val;
-    unsigned int led = 0;
-    sscanf(attr->attr.name,"%u",&led);
-    led=7-led;
-
+    u8 valnew = 0;
+    sscanf(buf,"%hhu",&valnew);
+    if(valnew > 2)
+        return -EINVAL;
     spin_lock(&edev->register_lock);
-    val = in_8(edev->base_address+3);
-    if(buf[0] == '1')
-        val|=1<<led;
-    else
-        val&=~(1<<led);
-    out_8(edev->base_address+3,val);
+    val = in_8(edev->base_address);
+    val &= 0xFC;
+    val |= valnew;
+    out_8(edev->base_address,val);
     spin_unlock(&edev->register_lock);
 
     return count;
 }
 
-static DEVICE_ATTR(0, (S_IRUGO|S_IWUGO), led_show, led_store);
-static DEVICE_ATTR(1, (S_IRUGO|S_IWUGO), led_show, led_store);
-static DEVICE_ATTR(2, (S_IRUGO|S_IWUGO), led_show, led_store);
-static DEVICE_ATTR(3, (S_IRUGO|S_IWUGO), led_show, led_store);
-static DEVICE_ATTR(4, (S_IRUGO|S_IWUGO), led_show, led_store);
-static DEVICE_ATTR(5, (S_IRUGO|S_IWUGO), led_show, led_store);
-static DEVICE_ATTR(6, (S_IRUGO|S_IWUGO), led_show, led_store);
-static DEVICE_ATTR(7, (S_IRUGO|S_IWUGO), led_show, led_store);
-
-
-static struct attribute *leds_attrs[] = {
-    &dev_attr_0.attr,
-    &dev_attr_1.attr,
-    &dev_attr_2.attr,
-    &dev_attr_3.attr,
-    &dev_attr_4.attr,
-    &dev_attr_5.attr,
-    &dev_attr_6.attr,
-    &dev_attr_7.attr,
-    NULL,
-};
-
-static struct attribute_group leds_group = {
-    .attrs = leds_attrs,
-    .name = "leds",
-};
-
-static ssize_t register_show(struct device *dev, struct device_attribute *attr,
-        char *buf)
-{
-    struct emce_device *edev = dev_get_drvdata(dev);
-    u32 val;
-    unsigned int num=0;
-    sscanf(attr->attr.name, "reg%d",&num);
-
-    val = in_be32(edev->base_address + num*4);
-    return sprintf(buf,"0x%x",val);
+static ssize_t data_valid_show(struct device *dev, struct device_attribute *attr, 
+        char *buf) 
+{ 
+    struct emce_device *edev = dev_get_drvdata(dev); 
+    u8 val = (in_8(edev->base_address) & 0x04) >> 2;
+    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
 }
 
-static ssize_t register_store(struct device *dev, struct device_attribute *attr,
+static ssize_t depth_show(struct device *dev, struct device_attribute *attr, 
+        char *buf) 
+{ 
+    struct emce_device *edev = dev_get_drvdata(dev); 
+    u16 val = in_be16(edev->base_address+6);
+    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
+}
+
+static ssize_t depth_store(struct device *dev, struct device_attribute *attr,
         const char *buf, size_t count)
 {
     struct emce_device *edev = dev_get_drvdata(dev);
-    unsigned long val;
-    unsigned int num=0;
-    sscanf(attr->attr.name, "reg%d",&num);
+    u16 valnew = 0;
+    sscanf(buf,"%hu",&valnew);
+    if(valnew > 50000)
+        return -EINVAL;
+    spin_lock(&edev->register_lock);
+    out_be16(edev->base_address+6,valnew);
+    spin_unlock(&edev->register_lock);
 
-    sscanf(buf,"%lx",&val);
-
-    out_be32(edev->base_address + num*4,val);
     return count;
 }
 
-static DEVICE_ATTR(reg0, (S_IRUGO|S_IWUGO), register_show, register_store);
-static DEVICE_ATTR(reg1, (S_IRUGO|S_IWUGO), register_show, register_store);
-
-static ssize_t intr_show(struct device *dev, struct device_attribute *attr,
-        char *buf)
-{
-    return sprintf(buf,"1");
+static ssize_t width_show(struct device *dev, struct device_attribute *attr, 
+        char *buf) 
+{ 
+    struct emce_device *edev = dev_get_drvdata(dev); 
+    u8 val = in_8(edev->base_address+5) & 0x03;
+    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
 }
 
-static DEVICE_ATTR(intr, S_IRUGO, intr_show, NULL);
+static ssize_t width_store(struct device *dev, struct device_attribute *attr,
+        const char *buf, size_t count)
+{
+    struct emce_device *edev = dev_get_drvdata(dev);
+    u8 val;
+    u8 valnew = 0;
+    sscanf(buf,"%hhu",&valnew);
+    if(valnew > 3 || valnew < 0)
+        return -EINVAL;
+    spin_lock(&edev->register_lock);
+    val = in_8(edev->base_address+5);
+    val &= 0xFC;
+    val |= valnew;
+    out_8(edev->base_address+5,val);
+    spin_unlock(&edev->register_lock);
 
-static struct attribute *register_attrs[] = {
-    &dev_attr_reg0.attr,
-    &dev_attr_reg1.attr,
-    &dev_attr_intr.attr,
+    return count;
+}
+
+static ssize_t arm_show(struct device *dev, struct device_attribute *attr, 
+        char *buf) 
+{ 
+    struct emce_device *edev = dev_get_drvdata(dev); 
+    u8 val = in_8(edev->base_address+4) & 0x01;
+    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
+}
+
+static ssize_t arm_store(struct device *dev, struct device_attribute *attr,
+        const char *buf, size_t count)
+{
+    struct emce_device *edev = dev_get_drvdata(dev);
+    u8 val;
+    u8 valnew = 0;
+    sscanf(buf,"%hhu",&valnew);
+    if(valnew != 1)
+        return -EINVAL;
+    spin_lock(&edev->register_lock);
+    val = in_8(edev->base_address+4);
+    val &= 0xFE;
+    val |= valnew;
+    out_8(edev->base_address+4,val);
+    spin_unlock(&edev->register_lock);
+
+    return count;
+}
+
+static ssize_t done_show(struct device *dev, struct device_attribute *attr, 
+        char *buf) 
+{ 
+    struct emce_device *edev = dev_get_drvdata(dev); 
+    u8 val = (in_8(edev->base_address+4) & 0x02) >> 1;
+    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
+}
+
+static ssize_t rst_show(struct device *dev, struct device_attribute *attr, 
+        char *buf) 
+{ 
+    struct emce_device *edev = dev_get_drvdata(dev); 
+    u8 val = (in_8(edev->base_address+4) & 0x04) >> 2;
+    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
+}
+
+static ssize_t rst_store(struct device *dev, struct device_attribute *attr,
+        const char *buf, size_t count)
+{
+    struct emce_device *edev = dev_get_drvdata(dev);
+    u8 val;
+    u8 valnew = 0;
+    sscanf(buf,"%hhu",&valnew);
+    if(valnew != 1)
+        return -EINVAL;
+    spin_lock(&edev->register_lock);
+    val = in_8(edev->base_address+4);
+    val &= 0xFD;
+    val |= valnew << 1;
+    out_8(edev->base_address+4,val);
+    spin_unlock(&edev->register_lock);
+
+    return count;
+}
+
+static ssize_t locked_show(struct device *dev, struct device_attribute *attr, 
+        char *buf) 
+{ 
+    struct emce_device *edev = dev_get_drvdata(dev); 
+    u8 val = in_8(edev->base_address+4) & 0x08 >> 3;
+    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
+}
+
+static ssize_t mem_show(struct device *dev, struct device_attribute *attr, 
+        char *buf) 
+{ 
+    struct emce_device *edev = dev_get_drvdata(dev); 
+    u8 val = (in_8(edev->base_address+4) & 0x10) >> 4;
+    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
+}
+
+static ssize_t mem_store(struct device *dev, struct device_attribute *attr,
+        const char *buf, size_t count)
+{
+    struct emce_device *edev = dev_get_drvdata(dev);
+    u8 val;
+    u8 valnew = 0;
+    sscanf(buf,"%hhu",&valnew);
+    if(valnew > 1 || valnew < 0)
+        return -EINVAL;
+    spin_lock(&edev->register_lock);
+    val = in_8(edev->base_address+4);
+    val &= 0xEF;
+    val |= valnew << 4;
+    out_8(edev->base_address+4,val);
+    spin_unlock(&edev->register_lock);
+
+    return count;
+}
+
+static ssize_t deskew_show(struct device *dev, struct device_attribute *attr, 
+        char *buf) 
+{ 
+    struct emce_device *edev = dev_get_drvdata(dev); 
+    u8 val = (in_8(edev->base_address+15) & 0x01);
+    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
+}
+
+static ssize_t deskew_store(struct device *dev, struct device_attribute *attr,
+        const char *buf, size_t count)
+{
+    struct emce_device *edev = dev_get_drvdata(dev);
+    u8 val;
+    u8 valnew = 0;
+    sscanf(buf,"%hhu",&valnew);
+    if(valnew != 1)
+        return -EINVAL;
+    spin_lock(&edev->register_lock);
+    val = in_8(edev->base_address+15);
+    val &= 0xFE;
+    val |= valnew;
+    out_8(edev->base_address+15,val);
+    spin_unlock(&edev->register_lock);
+
+    return count;
+}
+
+static DEVICE_ATTR(input, (S_IRUGO|S_IWUGO), input_show, input_store);
+static DEVICE_ATTR(data_valid, (S_IRUGO), data_valid_show, NULL);
+static DEVICE_ATTR(depth, (S_IRUGO|S_IWUGO), depth_show, depth_store);
+static DEVICE_ATTR(width, (S_IRUGO|S_IWUGO), width_show, width_store);
+static DEVICE_ATTR(arm, (S_IRUGO|S_IWUGO), arm_show, arm_store);
+static DEVICE_ATTR(done, (S_IRUGO), done_show, NULL);
+static DEVICE_ATTR(rst, (S_IRUGO|S_IWUGO), rst_show, rst_store);
+static DEVICE_ATTR(locked, (S_IRUGO), locked_show, NULL);
+static DEVICE_ATTR(mem, (S_IRUGO|S_IWUGO), mem_show, mem_store);
+static DEVICE_ATTR(deskew, (S_IRUGO|S_IWUGO), deskew_show, deskew_store);
+
+
+static struct attribute *system_attrs[] = {
+    &dev_attr_input.attr,
+    &dev_attr_data_valid.attr,
+    &dev_attr_depth.attr,
+    &dev_attr_width.attr,
+    &dev_attr_arm.attr,
+    &dev_attr_done.attr,
+    &dev_attr_rst.attr,
+    &dev_attr_locked.attr,
+    &dev_attr_mem.attr,
+    &dev_attr_deskew.attr,
     NULL
 };
 
-static struct attribute_group register_group = {
-    .attrs = register_attrs,
+static struct attribute_group system_group = {
+    .attrs = system_attrs,
+};
+
+static struct attribute_group gtx0_group = {
+    .name = "gtx0",
+    .attrs = receiver_attrs_0,
+};
+
+static struct attribute_group gtx1_group = {
+    .name = "gtx1",
+    .attrs = receiver_attrs_1,
+};
+
+static struct attribute_group gtx2_group = {
+    .name = "gtx2",
+    .attrs = receiver_attrs_2,
 };
 
 static irqreturn_t edev_isr(int irq, void *dev_id)
@@ -170,7 +368,7 @@ static irqreturn_t edev_isr(int irq, void *dev_id)
     status = in_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET);
     out_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET, status);
 
-    sysfs_notify(&dev->kobj, NULL, "intr");
+//    sysfs_notify(&dev->kobj, NULL, "intr"); // dir attr
 
     return IRQ_HANDLED;
 }
@@ -349,25 +547,39 @@ static int __devinit emce_of_probe(struct platform_device *ofdev,
         goto error4;
     }
 
-    if(sysfs_create_group(&dev->kobj, &leds_group))
+    if(sysfs_create_group(&dev->kobj, &system_group))
     {
         dev_err(dev, "Couldn't create sysfs entries\n");
         rc = -EFAULT;
         goto error5;
     }
 
-    if(sysfs_create_group(&dev->kobj, &register_group))
+    if(sysfs_create_group(&dev->kobj, &gtx0_group))
     {
         dev_err(dev, "Couldn't create sysfs entries\n");
         rc = -EFAULT;
         goto error6;
     }
 
+    if(sysfs_create_group(&dev->kobj, &gtx1_group))
+    {
+        dev_err(dev, "Couldn't create sysfs entries\n");
+        rc = -EFAULT;
+        goto error7;
+    }
+
+    if(sysfs_create_group(&dev->kobj, &gtx2_group))
+    {
+        dev_err(dev, "Couldn't create sysfs entries\n");
+        rc = -EFAULT;
+        goto error8;
+    }
+
     if(alloc_chrdev_region(&edev->dev, 0, USER_MEM, DRIVER_NAME))
     {
         dev_err(dev, "Couldn't alloc char devs\n");
         rc = -EFAULT;
-        goto error7;
+        goto error9;
     }
 
     cdev_init(&edev->cdev, &emce_fops);
@@ -377,7 +589,7 @@ static int __devinit emce_of_probe(struct platform_device *ofdev,
     {
         dev_err(dev, "Couldn't create char devs\n");
         rc = -EFAULT;
-        goto error8;
+        goto error10;
     }
 
     dev_info(dev, "Registered char dev %d:%d - %d:%d\n", MAJOR(edev->dev),
@@ -393,12 +605,16 @@ static int __devinit emce_of_probe(struct platform_device *ofdev,
     out_be32(edev->base_address + EMCE_INTR_DGIER_OFFSET, EMCE_INTR_GIE_MASK);
 
     return 0;
-error8:
+error10:
     unregister_chrdev_region(edev->dev, USER_MEM);
+error9:
+    sysfs_remove_group(&dev->kobj, &gtx2_group);
+error8:
+    sysfs_remove_group(&dev->kobj, &gtx1_group);
 error7:
-    sysfs_remove_group(&dev->kobj, &register_group);
+    sysfs_remove_group(&dev->kobj, &gtx0_group);
 error6:
-    sysfs_remove_group(&dev->kobj, &leds_group);
+    sysfs_remove_group(&dev->kobj, &system_group);
 error5:
     free_irq(edev->irq, dev);
 error4:
@@ -433,8 +649,10 @@ static int __devexit emce_of_remove(struct platform_device *of_dev)
     //unregister stuff
     cdev_del(&edev->cdev);
     unregister_chrdev_region(edev->dev, USER_MEM);
-    sysfs_remove_group(&dev->kobj, &register_group);
-    sysfs_remove_group(&dev->kobj, &leds_group);
+    sysfs_remove_group(&dev->kobj, &system_group);
+    sysfs_remove_group(&dev->kobj, &gtx2_group);
+    sysfs_remove_group(&dev->kobj, &gtx1_group);
+    sysfs_remove_group(&dev->kobj, &gtx0_group);
     free_irq(edev->irq, dev);
     for(i=0;i<USER_MEM;i++)
     {
