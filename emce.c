@@ -313,6 +313,32 @@ static ssize_t deskew_store(struct device *dev, struct device_attribute *attr,
     return count;
 }
 
+static ssize_t dc_balance_show(struct device *dev, struct device_attribute *attr, 
+        char *buf) 
+{ 
+    struct emce_device *edev = dev_get_drvdata(dev); 
+    u8 val = (in_8(edev->base_address+15) & 0x02) >> 1;
+    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
+}
+
+static ssize_t dc_balance_store(struct device *dev, struct device_attribute *attr,
+        const char *buf, size_t count)
+{
+    struct emce_device *edev = dev_get_drvdata(dev);
+    u8 val;
+    u8 valnew = 0;
+    sscanf(buf,"%hhu",&valnew);
+    if(valnew != 1)
+        return -EINVAL;
+    spin_lock(&edev->register_lock);
+    val = in_8(edev->base_address+15);
+    val &= 0xFD;
+    val |= valnew << 1;
+    out_8(edev->base_address+15,val);
+    spin_unlock(&edev->register_lock);
+
+    return count;
+}
 static DEVICE_ATTR(input, (S_IRUGO|S_IWUGO), input_show, input_store);
 static DEVICE_ATTR(data_valid, (S_IRUGO), data_valid_show, NULL);
 static DEVICE_ATTR(depth, (S_IRUGO|S_IWUGO), depth_show, depth_store);
@@ -323,6 +349,7 @@ static DEVICE_ATTR(rst, (S_IRUGO|S_IWUGO), rst_show, rst_store);
 static DEVICE_ATTR(locked, (S_IRUGO), locked_show, NULL);
 static DEVICE_ATTR(mem, (S_IRUGO|S_IWUGO), mem_show, mem_store);
 static DEVICE_ATTR(deskew, (S_IRUGO|S_IWUGO), deskew_show, deskew_store);
+static DEVICE_ATTR(dc_balance, (S_IRUGO|S_IWUGO), dc_balance_show, dc_balance_store);
 
 
 static struct attribute *system_attrs[] = {
@@ -336,6 +363,7 @@ static struct attribute *system_attrs[] = {
     &dev_attr_locked.attr,
     &dev_attr_mem.attr,
     &dev_attr_deskew.attr,
+    &dev_attr_dc_balance.attr,
     NULL
 };
 
