@@ -49,17 +49,16 @@ struct emce_device
     unsigned int irq;
 };
 
-#define RECEIVERS 3
-#define __RECEIVER(_name, _num, _acc, _bit, _len) \
-static ssize_t _name##_receiver_##_num##_show(struct device *dev, struct device_attribute *attr, \
+#define FLAG(_base, _name, _offset, _acc, _bit, _len) \
+static ssize_t _base_##_name_##_show(struct device *dev, struct device_attribute *attr, \
         char *buf) \
 { \
     struct emce_device *edev = dev_get_drvdata(dev); \
-    u8 val = in_8(edev->base_address+RECEIVERS-_num) >> _bit; \
+    u8 val = in_8(edev->base_address+_offset) >> _bit; \
     return snprintf(buf,PAGE_SIZE,"%hhu\n",val & ((1<<(_len))-1)); \
 }\
 \
-static ssize_t _name##_receiver_##_num##_store(struct device *dev, struct device_attribute *attr,\
+static ssize_t _base_##_name_##_store(struct device *dev, struct device_attribute *attr,\
         const char *buf, size_t count)\
 {\
     struct emce_device *edev = dev_get_drvdata(dev);\
@@ -69,15 +68,18 @@ static ssize_t _name##_receiver_##_num##_store(struct device *dev, struct device
     if(valnew>>_len)\
         return -EINVAL;\
     spin_lock(&edev->register_lock);\
-    val = in_8(edev->base_address+RECEIVERS-_num);\
+    val = in_8(edev->base_address+_offset);\
     val &= ~(((1<<(_len))-1) << _bit);\
     val |= valnew << _bit;\
-    out_8(edev->base_address+RECEIVERS-_num,val);\
+    out_8(edev->base_address+_offset,val);\
     spin_unlock(&edev->register_lock);\
     return count;\
 }\
 \
-struct device_attribute dev_attr_##_name##_receiver_##_num = __ATTR(_name, _acc, _name##_receiver_##_num##_show, _name##_receiver_##_num##_store);
+struct device_attribute dev_attr_##_base_##_name = __ATTR(_name, _acc, _base_##_name_##_show, _base##_name_##_store);
+
+#define RECEIVERS 3
+#define __RECEIVER(_name, _num, _acc, _bit, _len) FLAG(rec, _name_##_num, RECEIVERS-_num, _acc, _bit, _len)
 
 #define RECEIVER(_name, _acc, _bit, _len) \
 __RECEIVER(_name, 0, _acc, _bit, _len)\
@@ -92,11 +94,11 @@ RECEIVER(data_valid, S_IRUGO, 5, 1)
 
 #define RECEIVER_ATTRS(_num) \
 static struct attribute *receiver_attrs_##_num[] = { \
-    &dev_attr_enable_receiver_##_num.attr, \
-    &dev_attr_polarity_receiver_##_num.attr,\
-    &dev_attr_descramble_receiver_##_num.attr,\
-    &dev_attr_rxeqmix_receiver_##_num.attr,\
-    &dev_attr_data_valid_receiver_##_num.attr,\
+    &dev_attr_rec_enable_##_num.attr, \
+    &dev_attr_rec_polarity_##_num.attr,\
+    &dev_attr_rec_descramble_##_num.attr,\
+    &dev_attr_rec_rxeqmix_##_num.attr,\
+    &dev_attr_rec_data_valid_##_num.attr,\
     NULL,\
 };
 
@@ -104,40 +106,9 @@ RECEIVER_ATTRS(0)
 RECEIVER_ATTRS(1)
 RECEIVER_ATTRS(2)
 
-static ssize_t input_show(struct device *dev, struct device_attribute *attr, 
-        char *buf) 
-{ 
-    struct emce_device *edev = dev_get_drvdata(dev); 
-    u8 val = in_8(edev->base_address) & 0x03;
-    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
-}
-
-static ssize_t input_store(struct device *dev, struct device_attribute *attr,
-        const char *buf, size_t count)
-{
-    struct emce_device *edev = dev_get_drvdata(dev);
-    u8 val;
-    u8 valnew = 0;
-    sscanf(buf,"%hhu",&valnew);
-    if(valnew > 2)
-        return -EINVAL;
-    spin_lock(&edev->register_lock);
-    val = in_8(edev->base_address);
-    val &= 0xFC;
-    val |= valnew;
-    out_8(edev->base_address,val);
-    spin_unlock(&edev->register_lock);
-
-    return count;
-}
-
-static ssize_t data_valid_show(struct device *dev, struct device_attribute *attr, 
-        char *buf) 
-{ 
-    struct emce_device *edev = dev_get_drvdata(dev); 
-    u8 val = (in_8(edev->base_address) & 0x04) >> 2;
-    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
-}
+FLAG(rec, input_select, 0, (S_IRUGO|S_IWUGO), 0, 2)
+FLAG(rec, stream_valid, 0, S_IRUGO, 2, 1)
+FLAG(rec, rst, 0, S_IWUGO, 7, 1)
 
 static ssize_t depth_show(struct device *dev, struct device_attribute *attr, 
         char *buf) 
@@ -155,215 +126,220 @@ static ssize_t depth_store(struct device *dev, struct device_attribute *attr,
     sscanf(buf,"%hu",&valnew);
     if(valnew > 50000)
         return -EINVAL;
-    spin_lock(&edev->register_lock);
     out_be16(edev->base_address+6,valnew);
-    spin_unlock(&edev->register_lock);
 
     return count;
 }
+struct device_attribute dev_attr_depth = __ATTR(depth, (S_IRUGO|S_IWUGO), depth_show, depth_store);
 
-static ssize_t width_show(struct device *dev, struct device_attribute *attr, 
+FLAG(trig, type, 5, (S_IRUGO|S_IWUGO), 0, 1)
+FLAG(trig, arm, 5, (S_IRUGO|S_IWUGO), 2, 1)
+FLAG(trig, int, 5, S_IWUGO, 3, 1)
+FLAG(trig, rst, 5, S_IWUGO, 7, 1)
+
+FLAG(avg, width, 4, (S_IRUGO|S_IWUGO), 0, 2)
+FLAG(avg, active, 4, S_IRUGO, 2, 1)
+FLAG(avg, err, 4, S_IRUGO, 3, 1)
+FLAG(avg, rst, 4, S_IWUGO, 7, 1)
+
+//TODO
+static ssize_t core_scale_sch_show(struct device *dev, struct device_attribute *attr, 
         char *buf) 
 { 
     struct emce_device *edev = dev_get_drvdata(dev); 
-    u8 val = in_8(edev->base_address+5) & 0x03;
-    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
+    //FIXME
+    u16 val = in_be16(edev->base_address+10);
+    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
 }
 
-static ssize_t width_store(struct device *dev, struct device_attribute *attr,
+static ssize_t core_scale_sch_store(struct device *dev, struct device_attribute *attr,
         const char *buf, size_t count)
 {
     struct emce_device *edev = dev_get_drvdata(dev);
-    u8 val;
-    u8 valnew = 0;
-    sscanf(buf,"%hhu",&valnew);
-    if(valnew > 3 || valnew < 0)
-        return -EINVAL;
-    spin_lock(&edev->register_lock);
-    val = in_8(edev->base_address+5);
-    val &= 0xFC;
-    val |= valnew;
-    out_8(edev->base_address+5,val);
-    spin_unlock(&edev->register_lock);
+    u16 valnew = 0;
+    sscanf(buf,"%hu",&valnew);
+    //FIXME
+    out_be16(edev->base_address+10,valnew);
 
     return count;
 }
+struct device_attribute dev_attr_core_scale_sch = __ATTR(scale_sch, (S_IRUGO|S_IWUGO), core_scale_sch_show, core_scale_sch_store);
 
-static ssize_t arm_show(struct device *dev, struct device_attribute *attr, 
+static ssize_t core_scale_schi_show(struct device *dev, struct device_attribute *attr, 
         char *buf) 
 { 
     struct emce_device *edev = dev_get_drvdata(dev); 
-    u8 val = in_8(edev->base_address+4) & 0x01;
-    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
+    //FIXME
+    u16 val = in_be16(edev->base_address+8);
+    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
 }
 
-static ssize_t arm_store(struct device *dev, struct device_attribute *attr,
+static ssize_t core_scale_schi_store(struct device *dev, struct device_attribute *attr,
         const char *buf, size_t count)
 {
     struct emce_device *edev = dev_get_drvdata(dev);
-    u8 val;
-    u8 valnew = 0;
-    sscanf(buf,"%hhu",&valnew);
-    if(valnew != 1)
-        return -EINVAL;
-    spin_lock(&edev->register_lock);
-    val = in_8(edev->base_address+4);
-    val &= 0xFE;
-    val |= valnew;
-    out_8(edev->base_address+4,val);
-    spin_unlock(&edev->register_lock);
+    u16 valnew = 0;
+    sscanf(buf,"%hu",&valnew);
+    //FIXME
+    out_be16(edev->base_address+8,valnew);
 
     return count;
 }
+struct device_attribute dev_attr_core_scale_schi = __ATTR(scale_schi, (S_IRUGO|S_IWUGO), core_scale_schi_show, core_scale_schi_store);
 
-static ssize_t done_show(struct device *dev, struct device_attribute *attr, 
+static ssize_t core_L_show(struct device *dev, struct device_attribute *attr, 
         char *buf) 
 { 
     struct emce_device *edev = dev_get_drvdata(dev); 
-    u8 val = (in_8(edev->base_address+4) & 0x02) >> 1;
-    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
+    //FIXME
+    u16 val = in_be16(edev->base_address+14);
+    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
 }
 
-static ssize_t rst_show(struct device *dev, struct device_attribute *attr, 
-        char *buf) 
-{ 
-    struct emce_device *edev = dev_get_drvdata(dev); 
-    u8 val = (in_8(edev->base_address+4) & 0x04) >> 2;
-    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
-}
-
-static ssize_t rst_store(struct device *dev, struct device_attribute *attr,
+static ssize_t core_L_store(struct device *dev, struct device_attribute *attr,
         const char *buf, size_t count)
 {
     struct emce_device *edev = dev_get_drvdata(dev);
-    u8 val;
-    u8 valnew = 0;
-    sscanf(buf,"%hhu",&valnew);
-    if(valnew != 1)
-        return -EINVAL;
-    spin_lock(&edev->register_lock);
-    val = in_8(edev->base_address+4);
-    val &= 0xFD;
-    val |= valnew << 1;
-    out_8(edev->base_address+4,val);
-    spin_unlock(&edev->register_lock);
+    u16 valnew = 0;
+    sscanf(buf,"%hu",&valnew);
+    //FIXME
+    out_be16(edev->base_address+14,valnew);
 
     return count;
 }
+struct device_attribute dev_attr_core_L = __ATTR(L, (S_IRUGO|S_IWUGO), core_L_show, core_L_store);
 
-static ssize_t locked_show(struct device *dev, struct device_attribute *attr, 
+FLAG(core, cmul_sch, 14, (S_IRUGO|S_IWUGO), 6, 2)
+FLAG(core, n, 13, (S_IRUGO|S_IWUGO), 0, 5) //FIXME
+FLAG(core, iq, 12, (S_IRUGO|S_IWUGO), 0, 1)
+FLAG(core, start, 12, (S_IRUGO|S_IWUGO), 1, 1)
+FLAG(core, ov_fft, 12, S_IRUGO, 2, 1)
+FLAG(core, ov_ifft, 12, S_IRUGO, 3, 1)
+FLAG(core, ov_cmul, 12, S_IRUGO, 4, 1)
+FLAG(core, rst, 12, S_IWUGO, 7, 1)
+
+
+static ssize_t tx_muli_show(struct device *dev, struct device_attribute *attr, 
         char *buf) 
 { 
     struct emce_device *edev = dev_get_drvdata(dev); 
-    u8 val = in_8(edev->base_address+4) & 0x08 >> 3;
-    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
+    u16 val = in_be16(edev->base_address+18);
+    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
 }
 
-static ssize_t mem_show(struct device *dev, struct device_attribute *attr, 
-        char *buf) 
-{ 
-    struct emce_device *edev = dev_get_drvdata(dev); 
-    u8 val = (in_8(edev->base_address+4) & 0x10) >> 4;
-    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
-}
-
-static ssize_t mem_store(struct device *dev, struct device_attribute *attr,
+static ssize_t tx_muli_store(struct device *dev, struct device_attribute *attr,
         const char *buf, size_t count)
 {
     struct emce_device *edev = dev_get_drvdata(dev);
-    u8 val;
-    u8 valnew = 0;
-    sscanf(buf,"%hhu",&valnew);
-    if(valnew > 1 || valnew < 0)
-        return -EINVAL;
-    spin_lock(&edev->register_lock);
-    val = in_8(edev->base_address+4);
-    val &= 0xEF;
-    val |= valnew << 4;
-    out_8(edev->base_address+4,val);
-    spin_unlock(&edev->register_lock);
+    u16 valnew = 0;
+    sscanf(buf,"%hu",&valnew);
+    out_be16(edev->base_address+18,valnew);
 
     return count;
 }
+struct device_attribute dev_attr_tx_muli = __ATTR(muli, (S_IRUGO|S_IWUGO), tx_muli_show, tx_muli_store);
 
-static ssize_t deskew_show(struct device *dev, struct device_attribute *attr, 
+static ssize_t tx_mulq_show(struct device *dev, struct device_attribute *attr, 
         char *buf) 
 { 
     struct emce_device *edev = dev_get_drvdata(dev); 
-    u8 val = (in_8(edev->base_address+15) & 0x01);
-    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
+    u16 val = in_be16(edev->base_address+16);
+    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
 }
 
-static ssize_t deskew_store(struct device *dev, struct device_attribute *attr,
+static ssize_t tx_mulq_store(struct device *dev, struct device_attribute *attr,
         const char *buf, size_t count)
 {
     struct emce_device *edev = dev_get_drvdata(dev);
-    u8 val;
-    u8 valnew = 0;
-    sscanf(buf,"%hhu",&valnew);
-    if(valnew != 1)
-        return -EINVAL;
-    spin_lock(&edev->register_lock);
-    val = in_8(edev->base_address+15);
-    val &= 0xFE;
-    val |= valnew;
-    out_8(edev->base_address+15,val);
-    spin_unlock(&edev->register_lock);
+    u16 valnew = 0;
+    sscanf(buf,"%hu",&valnew);
+    out_be16(edev->base_address+16,valnew);
 
     return count;
 }
+struct device_attribute dev_attr_tx_mulq = __ATTR(mulq, (S_IRUGO|S_IWUGO), tx_mulq_show, tx_mulq_store);
 
-static ssize_t dc_balance_show(struct device *dev, struct device_attribute *attr, 
+static ssize_t tx_frame_offset_show(struct device *dev, struct device_attribute *attr, 
         char *buf) 
 { 
     struct emce_device *edev = dev_get_drvdata(dev); 
-    u8 val = (in_8(edev->base_address+15) & 0x02) >> 1;
-    return snprintf(buf,PAGE_SIZE,"%hhu\n",val); 
+    u16 val = in_be16(edev->base_address+22);
+    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
 }
 
-static ssize_t dc_balance_store(struct device *dev, struct device_attribute *attr,
+static ssize_t tx_frame_offset_store(struct device *dev, struct device_attribute *attr,
         const char *buf, size_t count)
 {
     struct emce_device *edev = dev_get_drvdata(dev);
-    u8 val;
-    u8 valnew = 0;
-    sscanf(buf,"%hhu",&valnew);
-    if(valnew != 1)
-        return -EINVAL;
-    spin_lock(&edev->register_lock);
-    val = in_8(edev->base_address+15);
-    val &= 0xFD;
-    val |= valnew << 1;
-    out_8(edev->base_address+15,val);
-    spin_unlock(&edev->register_lock);
+    u16 valnew = 0;
+    sscanf(buf,"%hu",&valnew);
+    out_be16(edev->base_address+22,valnew);
 
     return count;
 }
-static DEVICE_ATTR(input, (S_IRUGO|S_IWUGO), input_show, input_store);
-static DEVICE_ATTR(data_valid, (S_IRUGO), data_valid_show, NULL);
-static DEVICE_ATTR(depth, (S_IRUGO|S_IWUGO), depth_show, depth_store);
-static DEVICE_ATTR(width, (S_IRUGO|S_IWUGO), width_show, width_store);
-static DEVICE_ATTR(arm, (S_IRUGO|S_IWUGO), arm_show, arm_store);
-static DEVICE_ATTR(done, (S_IRUGO), done_show, NULL);
-static DEVICE_ATTR(rst, (S_IRUGO|S_IWUGO), rst_show, rst_store);
-static DEVICE_ATTR(locked, (S_IRUGO), locked_show, NULL);
-static DEVICE_ATTR(mem, (S_IRUGO|S_IWUGO), mem_show, mem_store);
-static DEVICE_ATTR(deskew, (S_IRUGO|S_IWUGO), deskew_show, deskew_store);
-static DEVICE_ATTR(dc_balance, (S_IRUGO|S_IWUGO), dc_balance_show, dc_balance_store);
+struct device_attribute dev_attr_tx_frame_offset = __ATTR(frame_offset, (S_IRUGO|S_IWUGO), tx_frame_offset_show, tx_frame_offset_store);
 
+FLAG(tx, deskew, 21, S_IWUGO, 0, 1)
+FLAG(tx, dc_balance, 21, (S_IRUGO|S_IWUGO), 1, 1)
+FLAG(tx, toggle, 21, (S_IRUGO|S_IWUGO), 2, 1)
+FLAG(tx, resync, 21, S_IWUGO, 3, 1)
+FLAG(tx, rst, 21, S_IWUGO, 7, 1)
+
+FLAG(mem_req, 20, (S_IRUGO|S_IWUGO), 0, 1)
+
+static struct attribute *rec_attrs[] = {
+    &dev_attr_rec_input_select.attr,
+    &dev_attr_rec_stream_valid.attr,
+    &dev_attr_rec_rst.attr,
+    NULL
+};
+
+static struct attribute *trig_attrs[] = {
+    &dev_attr_trig_type.attr,
+    &dev_attr_trig_arm.attr,
+    &dev_attr_trig_int.attr,
+    &dev_attr_trig_rst.attr,
+    NULL
+};
+
+static struct attribute *avg_attrs[] = {
+    &dev_attr_avg_width.attr,
+    &dev_attr_avg_active.attr,
+    &dev_attr_avg_err.attr,
+    &dev_attr_avg_rst.attr,
+    NULL
+};
+
+static struct attribute *core_attrs[] = {
+    &dev_attr_core_scale_sch.attr,
+    &dev_attr_core_scale_schi.attr,
+    &dev_attr_core_L.attr,
+    &dev_attr_core_cmul_sch.attr,
+    &dev_attr_core_n.attr,
+    &dev_attr_core_iq.attr,
+    &dev_attr_core_start.attr,
+    &dev_attr_core_ov_fft.attr,
+    &dev_attr_core_ov_ifft.attr,
+    &dev_attr_core_ov_cmul.attr,
+    &dev_attr_core_rst.attr,
+    NULL
+};
+
+static struct attribute *tx_attrs[] = {
+    &dev_attr_tx_muli.attr,
+    &dev_attr_tx_mulq.attr,
+    &dev_attr_tx_frame_offset.attr,
+    &dev_attr_tx_deskew.attr,
+    &dev_attr_tx_dc_balance.attr,
+    &dev_attr_tx_toggle.attr,
+    &dev_attr_tx_resync.attr,
+    &dev_attr_tx_rst.attr,
+    NULL
+};
 
 static struct attribute *system_attrs[] = {
-    &dev_attr_input.attr,
-    &dev_attr_data_valid.attr,
     &dev_attr_depth.attr,
-    &dev_attr_width.attr,
-    &dev_attr_arm.attr,
-    &dev_attr_done.attr,
-    &dev_attr_rst.attr,
-    &dev_attr_locked.attr,
-    &dev_attr_mem.attr,
-    &dev_attr_deskew.attr,
-    &dev_attr_dc_balance.attr,
+    &dev_attr_mem_req.attr,
     NULL
 };
 
@@ -386,6 +362,31 @@ static struct attribute_group gtx2_group = {
     .attrs = receiver_attrs_2,
 };
 
+static struct attribute_group rec_group = {
+    .name = "receiver",
+    .attrs = rec_attrs,
+};
+
+static struct attribute_group trig_group = {
+    .name = "trigger",
+    .attrs = trig_attrs,
+};
+
+static struct attribute_group avg_group = {
+    .name = "average",
+    .attrs = avg_attrs,
+};
+
+static struct attribute_group core_group = {
+    .name = "core",
+    .attrs = core_attrs,
+};
+
+static struct attribute_group tx_group = {
+    .name = "transmitter",
+    .attrs = tx_attrs,
+};
+
 static irqreturn_t edev_isr(int irq, void *dev_id)
 {
     struct device *dev=(struct device*)dev_id;
@@ -397,8 +398,8 @@ static irqreturn_t edev_isr(int irq, void *dev_id)
     out_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET, status);
 
     dev_info(dev,"got intr 0x%x",status);
-
-//    sysfs_notify(&dev->kobj, NULL, "intr"); // dir attr
+// sysfs_notify(kobj, dir, attr)
+//    sysfs_notify(&dev->kobj, NULL, "intr"); // dir attr TODO
 
     return IRQ_HANDLED;
 }
@@ -472,11 +473,35 @@ static loff_t mem_lseek(struct file *file, loff_t offset, int orig)
     return ret;
 }
 
+static struct vm_operations_struct mem_mmap_ops = {
+};
+
+static int mem_mmap(struct file *file, struct vm_area_struct *vma)
+{
+    struct user_mem *mem = file->private_data;
+    unsigned long off = vma->pg_off << PAGE_SHIFT;
+    unsigned long physical = mem->start + off; //FIXME ?!?!?
+    unsigned long vsize = vma->vm_end - vma->vm_start;
+    unsigned long psize = mem->size - off;
+
+    if (vsize > psize)
+        return -EINVAL;
+
+    if (io_remap_pfn_range(vma, vma->vm_start, physical,
+                length,
+                vma->vm_page_prot))
+        return -EAGAIN;
+
+    vma->vm_ops = &mem_mmap_ops;
+    return 0;
+}
+
 static const struct file_operations emce_fops = {
     .owner = THIS_MODULE,
     .read = mem_read,
     .write = mem_write,
     .open = mem_open,
+    .mmap = mem_mmap,
     .llseek = mem_lseek,
 };
 
@@ -605,11 +630,46 @@ static int __devinit emce_of_probe(struct platform_device *ofdev,
         goto error8;
     }
 
+    if(sysfs_create_group(&dev->kobj, &rec_group))
+    {
+        dev_err(dev, "Couldn't create sysfs entries\n");
+        rc = -EFAULT;
+        goto error9;
+    }
+
+    if(sysfs_create_group(&dev->kobj, &trig_group))
+    {
+        dev_err(dev, "Couldn't create sysfs entries\n");
+        rc = -EFAULT;
+        goto error10;
+    }
+
+    if(sysfs_create_group(&dev->kobj, &avg_group))
+    {
+        dev_err(dev, "Couldn't create sysfs entries\n");
+        rc = -EFAULT;
+        goto error11;
+    }
+
+    if(sysfs_create_group(&dev->kobj, &core_group))
+    {
+        dev_err(dev, "Couldn't create sysfs entries\n");
+        rc = -EFAULT;
+        goto error12;
+    }
+
+    if(sysfs_create_group(&dev->kobj, &tx_group))
+    {
+        dev_err(dev, "Couldn't create sysfs entries\n");
+        rc = -EFAULT;
+        goto error13;
+    }
+
     if(alloc_chrdev_region(&edev->dev, 0, USER_MEM, DRIVER_NAME))
     {
         dev_err(dev, "Couldn't alloc char devs\n");
         rc = -EFAULT;
-        goto error9;
+        goto error14;
     }
 
     cdev_init(&edev->cdev, &emce_fops);
@@ -619,7 +679,7 @@ static int __devinit emce_of_probe(struct platform_device *ofdev,
     {
         dev_err(dev, "Couldn't create char devs\n");
         rc = -EFAULT;
-        goto error10;
+        goto error15;
     }
 
     dev_info(dev, "Registered char dev %d:%d - %d:%d\n", MAJOR(edev->dev),
@@ -628,15 +688,25 @@ static int __devinit emce_of_probe(struct platform_device *ofdev,
     //Reset Hardware
     out_be32(edev->base_address + EMCE_RST_REG_OFFSET, EMCE_SOFT_RESET);
     //Enable interrupts from user logic
-    out_be32(edev->base_address + EMCE_INTR_IPIER_OFFSET, 0x00000001);
+    out_be32(edev->base_address + EMCE_INTR_IPIER_OFFSET, 0xFFFFFFFF);
     //Enable user logic interrupt source
     out_be32(edev->base_address + EMCE_INTR_DIER_OFFSET, EMCE_INTR_IPIR_MASK);
     //Global interrupt enable
     out_be32(edev->base_address + EMCE_INTR_DGIER_OFFSET, EMCE_INTR_GIE_MASK);
 
     return 0;
-error10:
+error15:
     unregister_chrdev_region(edev->dev, USER_MEM);
+error14:
+    sysfs_remove_group(&dev->kobj, &tx_group);
+error13:
+    sysfs_remove_group(&dev->kobj, &core_group);
+error12:
+    sysfs_remove_group(&dev->kobj, &avg_group);
+error11:
+    sysfs_remove_group(&dev->kobj, &trig_group);
+error10:
+    sysfs_remove_group(&dev->kobj, &rec_group);
 error9:
     sysfs_remove_group(&dev->kobj, &gtx2_group);
 error8:
@@ -683,6 +753,11 @@ static int __devexit emce_of_remove(struct platform_device *of_dev)
     sysfs_remove_group(&dev->kobj, &gtx2_group);
     sysfs_remove_group(&dev->kobj, &gtx1_group);
     sysfs_remove_group(&dev->kobj, &gtx0_group);
+    sysfs_remove_group(&dev->kobj, &rec_group);
+    sysfs_remove_group(&dev->kobj, &trig_group);
+    sysfs_remove_group(&dev->kobj, &avg_group);
+    sysfs_remove_group(&dev->kobj, &core_group);
+    sysfs_remove_group(&dev->kobj, &tx_group);
     free_irq(edev->irq, dev);
     for(i=0;i<USER_MEM;i++)
     {
@@ -701,7 +776,7 @@ static int __devexit emce_of_remove(struct platform_device *of_dev)
 }
 
 static const struct of_device_id emce_of_match[] __devinitdata = {
-    { .compatible = "xlnx,proc2fpga-1.00.a", },
+    { .compatible = "xlnx,proc2fpga-3.00.a", },
     { /* end of list */ },
 };
 
