@@ -1,8 +1,10 @@
+ARCH=powerpc
+CROSS_COMPILE=powerpc-linux-
 ifneq ($(KERNELRELEASE),)
     obj-m := emce.o
 else
-    KDIR:=$(shell pwd)/../linux-2.6-xlnx/
+    KDIR:=$(shell pwd)/../linux/
     PWD:=$(shell pwd)
 default:
-	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules modules_install
+	ARCH=powerpc CROSS_COMPILE=powerpc-linux- $(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
 endif
