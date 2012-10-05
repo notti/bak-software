@@ -171,7 +171,7 @@ ssize_t core_n_store(struct device *dev, struct device_attribute *attr,
     val = ffs(new);
     if (new >> val)
         return -EINVAL;
-    val -= 1;
+    new = val - 1;
     spin_lock(&edev->register_lock);
     val = in_be32(edev->base_address + eflag->offset);
     val &= ~eflag->mask;
@@ -180,6 +180,14 @@ ssize_t core_n_store(struct device *dev, struct device_attribute *attr,
     spin_unlock(&edev->register_lock);
     return size;
 }
+
+ssize_t dummy_show(struct device *dev, struct device_attribute *attr,
+                       char *buf)
+{
+    return snprintf(buf, PAGE_SIZE, "\n");
+}
+
+
 
 #define FPGA_FLAGC(_base, _name, _mode, _offset, _bit, _width, _max, _show, _store) \
         struct fpga_flag_attribute dev_attr_##_base##_##_name = \
@@ -190,7 +198,7 @@ ssize_t core_n_store(struct device *dev, struct device_attribute *attr,
 #define FPGA_FLAGM(_base, _name, _mode, _offset, _bit, _width, _max) \
     FPGA_FLAGC(_base, _name, _mode, _offset, _bit, _width, _max, fpga_flag_show, fpga_flag_store)
 #define ATTR_INT(name) struct device_attribute dev_attr_int_##name = \
-        __ATTR(name, 0, NULL, NULL)
+        __ATTR(name, 0440, dummy_show, NULL)
 
 FPGA_FLAG(rec0, enable, 0660, REG0_OFFSET, 0, 1);
 FPGA_FLAG(rec0, polarity, 0660, REG0_OFFSET, 1, 1);
@@ -399,10 +407,12 @@ static irqreturn_t edev_isr(int irq, void *dev_id)
     status = in_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET);
     out_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET, status);
 
-    dev_dbg(dev,"got intr 0x%x",status);
     for(i=0; int_attrs[i]; i++)
-        if((status >> i) & 1)
+        if((status >> (15 - i)) & 1)
+        {
             sysfs_notify(&dev->kobj, "int", int_attrs[i]->name);
+            dev_dbg(dev,"got intr %s\n", int_attrs[i]->name);
+        }
 
     return IRQ_HANDLED;
 }
