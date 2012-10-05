@@ -32,6 +32,13 @@
 
 #define EMCE_SOFT_RESET        0x0000000A
 
+#define REG0_OFFSET            0x00000000
+#define REG1_OFFSET            0x00000004
+#define REG2_OFFSET            0x00000008
+#define REG3_OFFSET            0x0000000C
+#define REG4_OFFSET            0x00000010
+#define REG5_OFFSET            0x00000014
+
 
 struct user_mem
 {
@@ -52,307 +59,186 @@ struct emce_device
     unsigned int irq;
 };
 
-#define FLAG(_base, _name, _offset, _acc, _bit, _len) \
-static ssize_t _base##_##_name##_show(struct device *dev, \
-        struct device_attribute *attr, char *buf) \
-{ \
-    struct emce_device *edev = dev_get_drvdata(dev); \
-    u8 val = in_8(edev->base_address+_offset) >> _bit; \
-    return snprintf(buf,PAGE_SIZE,"%hhu\n",val & ((1<<(_len))-1)); \
-}\
-\
-static ssize_t _base##_##_name##_store(struct device *dev, \
-        struct device_attribute *attr, const char *buf, size_t count)\
-{\
-    struct emce_device *edev = dev_get_drvdata(dev);\
-    u8 val;\
-    u8 valnew = 0;\
-    sscanf(buf,"%hhu",&valnew);\
-    if(valnew>>_len)\
-        return -EINVAL;\
-    spin_lock(&edev->register_lock);\
-    val = in_8(edev->base_address+_offset);\
-    val &= ~(((1<<(_len))-1) << _bit);\
-    val |= valnew << _bit;\
-    out_8(edev->base_address+_offset,val);\
-    spin_unlock(&edev->register_lock);\
-    return count;\
-}\
-\
-struct device_attribute dev_attr_##_base##_##_name = \
-    __ATTR(_name, _acc, _base##_##_name##_show, _base##_##_name##_store);
-
-#define RECEIVERS 3
-#define __RECEIVER(_name, _num, _acc, _bit, _len) \
-    FLAG(rec, _name##_##_num, RECEIVERS-_num, _acc, _bit, _len)
-
-#define RECEIVER(_name, _acc, _bit, _len) \
-__RECEIVER(_name, 0, _acc, _bit, _len)\
-__RECEIVER(_name, 1, _acc, _bit, _len)\
-__RECEIVER(_name, 2, _acc, _bit, _len)
-
-RECEIVER(enable, (S_IRUGO|S_IWUGO), 0, 1)
-RECEIVER(polarity, (S_IRUGO|S_IWUGO), 1, 1)
-RECEIVER(descramble, (S_IRUGO|S_IWUGO), 2, 1)
-RECEIVER(rxeqmix, (S_IRUGO|S_IWUGO), 3, 2)
-RECEIVER(data_valid, S_IRUGO, 5, 1)
-
-#define RECEIVER_ATTRS(_num) \
-static struct attribute *receiver_attrs_##_num[] = { \
-    &dev_attr_rec_enable_##_num.attr, \
-    &dev_attr_rec_polarity_##_num.attr,\
-    &dev_attr_rec_descramble_##_num.attr,\
-    &dev_attr_rec_rxeqmix_##_num.attr,\
-    &dev_attr_rec_data_valid_##_num.attr,\
-    NULL,\
+struct fpga_flag_attribute {
+    struct device_attribute attr;
+    unsigned long offset;
+    u32 mask;
+    u32 shift;
+    u32 width;
+    u32 max;
 };
 
-RECEIVER_ATTRS(0)
-RECEIVER_ATTRS(1)
-RECEIVER_ATTRS(2)
+#define to_fpga_flag(x) container_of(x, struct fpga_flag_attribute, attr)
 
-FLAG(rec, input_select, 0, (S_IRUGO|S_IWUGO), 0, 2)
-FLAG(rec, stream_valid, 0, S_IRUGO, 2, 1)
-FLAG(rec, rst, 0, S_IWUGO, 7, 1)
-
-static ssize_t depth_show(struct device *dev, struct device_attribute *attr, 
-        char *buf) 
-{ 
-    struct emce_device *edev = dev_get_drvdata(dev); 
-    u16 val = in_be16(edev->base_address+6);
-    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
-}
-
-static ssize_t depth_store(struct device *dev, struct device_attribute *attr,
-        const char *buf, size_t count)
+ssize_t fpga_flag_show(struct device *dev, struct device_attribute *attr,
+                       char *buf)
 {
     struct emce_device *edev = dev_get_drvdata(dev);
-    u16 valnew = 0;
-    sscanf(buf,"%hu",&valnew);
-    if(valnew > 50000)
+    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+    u32 value = in_be32(edev->base_address + eflag->offset);
+
+    value &= eflag->mask;
+    value >>= eflag->shift;
+
+    return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)value);
+}
+
+ssize_t fpga_flag_store(struct device *dev, struct device_attribute *attr,
+                        const char *buf, size_t size)
+{
+    struct emce_device *edev = dev_get_drvdata(dev);
+    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+    u32 new = 0;
+    u32 val;
+    if (kstrtou32(buf, 0, &new))
         return -EINVAL;
-    out_be16(edev->base_address+6,valnew);
-
-    return count;
+    if (eflag->max && new > eflag->max)
+        return -EINVAL;
+    if (new >> eflag->width)
+        return -EINVAL;
+    spin_lock(&edev->register_lock);
+    val = in_be32(edev->base_address + eflag->offset);
+    val &= ~eflag->mask;
+    val |= new << eflag->shift;
+    out_be32(edev->base_address + eflag->offset, val);
+    spin_unlock(&edev->register_lock);
+    /* Always return full write size even if we didn't consume all */
+    return size;
 }
-struct device_attribute dev_attr_depth =
-    __ATTR(depth, (S_IRUGO|S_IWUGO), depth_show, depth_store);
 
-FLAG(trig, type, 5, (S_IRUGO|S_IWUGO), 0, 1)
-FLAG(trig, arm, 5, (S_IRUGO|S_IWUGO), 2, 1)
-FLAG(trig, int, 5, S_IWUGO, 3, 1)
-FLAG(trig, rst, 5, S_IWUGO, 7, 1)
-
-FLAG(avg, width, 4, (S_IRUGO|S_IWUGO), 0, 2)
-FLAG(avg, active, 4, S_IRUGO, 2, 1)
-FLAG(avg, err, 4, S_IRUGO, 3, 1)
-FLAG(avg, rst, 4, S_IWUGO, 7, 1)
-
-//TODO
-static ssize_t core_scale_sch_show(struct device *dev,
+static ssize_t scale_sch_show(struct device *dev,
         struct device_attribute *attr, char *buf) 
-{ 
+{
     struct emce_device *edev = dev_get_drvdata(dev); 
-    //FIXME
-    u16 val = in_be16(edev->base_address+10);
-    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
+    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+    u16 val = in_be16(edev->base_address + eflag->offset);
+    int i;
+    for(i=0; i<12; i++)
+        buf[11-i] = '0' + (char)((val >> i) & 1);
+    buf[12] = '\n';
+    buf[13] = 0;
+    return 13;
 }
 
-static ssize_t core_scale_sch_store(struct device *dev,
+static ssize_t scale_sch_store(struct device *dev,
         struct device_attribute *attr, const char *buf, size_t count)
 {
     struct emce_device *edev = dev_get_drvdata(dev);
+    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
     u16 valnew = 0;
-    sscanf(buf,"%hu",&valnew);
-    //FIXME
-    out_be16(edev->base_address+10,valnew);
+    int i;
+    char tmp;
+    if (count < 12)
+        return -EINVAL;
+    for(i=0; i<12; i++)
+    {
+        tmp = buf[11-i] - '0';
+        if (tmp > 1)
+            return -EINVAL;
+        valnew |= tmp << i;
+    }
+    out_be16(edev->base_address + eflag->offset,valnew);
 
     return count;
 }
-struct device_attribute dev_attr_core_scale_sch = 
-    __ATTR(scale_sch, (S_IRUGO|S_IWUGO), core_scale_sch_show, 
-            core_scale_sch_store);
 
-static ssize_t core_scale_schi_show(struct device *dev, 
-        struct device_attribute *attr, char *buf) 
-{ 
-    struct emce_device *edev = dev_get_drvdata(dev); 
-    //FIXME
-    u16 val = in_be16(edev->base_address+8);
-    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
-}
-
-static ssize_t core_scale_schi_store(struct device *dev,
-        struct device_attribute *attr, const char *buf, size_t count)
+ssize_t core_n_show(struct device *dev, struct device_attribute *attr,
+                       char *buf)
 {
     struct emce_device *edev = dev_get_drvdata(dev);
-    u16 valnew = 0;
-    sscanf(buf,"%hu",&valnew);
-    //FIXME
-    out_be16(edev->base_address+8,valnew);
+    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+    u32 value = in_be32(edev->base_address + eflag->offset);
 
-    return count;
-}
-struct device_attribute dev_attr_core_scale_schi = 
-    __ATTR(scale_schi, (S_IRUGO|S_IWUGO), core_scale_schi_show,
-            core_scale_schi_store);
+    value &= eflag->mask;
+    value >>= eflag->shift;
 
-static ssize_t core_L_show(struct device *dev, struct device_attribute *attr, 
-        char *buf) 
-{ 
-    struct emce_device *edev = dev_get_drvdata(dev); 
-    //FIXME
-    u16 val = in_be16(edev->base_address+14);
-    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
+    value = 1 << value;
+
+    return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)value);
 }
 
-static ssize_t core_L_store(struct device *dev, struct device_attribute *attr,
-        const char *buf, size_t count)
+ssize_t core_n_store(struct device *dev, struct device_attribute *attr,
+                        const char *buf, size_t size)
 {
     struct emce_device *edev = dev_get_drvdata(dev);
-    u16 valnew = 0;
-    sscanf(buf,"%hu",&valnew);
-    //FIXME
-    out_be16(edev->base_address+14,valnew);
-
-    return count;
-}
-struct device_attribute dev_attr_core_L = 
-    __ATTR(L, (S_IRUGO|S_IWUGO), core_L_show, core_L_store);
-
-FLAG(core, cmul_sch, 14, (S_IRUGO|S_IWUGO), 6, 2)
-FLAG(core, n, 13, (S_IRUGO|S_IWUGO), 0, 5) //FIXME
-FLAG(core, iq, 12, (S_IRUGO|S_IWUGO), 0, 1)
-FLAG(core, start, 12, (S_IRUGO|S_IWUGO), 1, 1)
-FLAG(core, ov_fft, 12, S_IRUGO, 2, 1)
-FLAG(core, ov_ifft, 12, S_IRUGO, 3, 1)
-FLAG(core, ov_cmul, 12, S_IRUGO, 4, 1)
-FLAG(core, rst, 12, S_IWUGO, 7, 1)
-
-
-static ssize_t tx_muli_show(struct device *dev, struct device_attribute *attr, 
-        char *buf) 
-{ 
-    struct emce_device *edev = dev_get_drvdata(dev); 
-    u16 val = in_be16(edev->base_address+18);
-    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
+    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+    u32 new = 0;
+    u32 val;
+    if (kstrtou32(buf, 0, &new))
+        return -EINVAL;
+    if (!(new & 0x1FF8))
+        return -EINVAL;
+    val = ffs(new);
+    if (new >> val)
+        return -EINVAL;
+    val -= 1;
+    spin_lock(&edev->register_lock);
+    val = in_be32(edev->base_address + eflag->offset);
+    val &= ~eflag->mask;
+    val |= new << eflag->shift;
+    out_be32(edev->base_address + eflag->offset, val);
+    spin_unlock(&edev->register_lock);
+    return size;
 }
 
-static ssize_t tx_muli_store(struct device *dev, struct device_attribute *attr,
-        const char *buf, size_t count)
-{
-    struct emce_device *edev = dev_get_drvdata(dev);
-    u16 valnew = 0;
-    sscanf(buf,"%hu",&valnew);
-    out_be16(edev->base_address+18,valnew);
-
-    return count;
-}
-struct device_attribute dev_attr_tx_muli = 
-    __ATTR(muli, (S_IRUGO|S_IWUGO), tx_muli_show, tx_muli_store);
-
-static ssize_t tx_mulq_show(struct device *dev, struct device_attribute *attr, 
-        char *buf) 
-{ 
-    struct emce_device *edev = dev_get_drvdata(dev); 
-    u16 val = in_be16(edev->base_address+16);
-    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
-}
-
-static ssize_t tx_mulq_store(struct device *dev, struct device_attribute *attr,
-        const char *buf, size_t count)
-{
-    struct emce_device *edev = dev_get_drvdata(dev);
-    u16 valnew = 0;
-    sscanf(buf,"%hu",&valnew);
-    out_be16(edev->base_address+16,valnew);
-
-    return count;
-}
-struct device_attribute dev_attr_tx_mulq = 
-    __ATTR(mulq, (S_IRUGO|S_IWUGO), tx_mulq_show, tx_mulq_store);
-
-static ssize_t tx_frame_offset_show(struct device *dev, struct device_attribute *attr, 
-        char *buf) 
-{ 
-    struct emce_device *edev = dev_get_drvdata(dev); 
-    u16 val = in_be16(edev->base_address+22);
-    return snprintf(buf,PAGE_SIZE,"%hu\n",val); 
-}
-
-static ssize_t tx_frame_offset_store(struct device *dev, struct device_attribute *attr,
-        const char *buf, size_t count)
-{
-    struct emce_device *edev = dev_get_drvdata(dev);
-    u16 valnew = 0;
-    sscanf(buf,"%hu",&valnew);
-    out_be16(edev->base_address+22,valnew);
-
-    return count;
-}
-struct device_attribute dev_attr_tx_frame_offset = 
-    __ATTR(frame_offset, (S_IRUGO|S_IWUGO), tx_frame_offset_show, tx_frame_offset_store);
-
-FLAG(tx, deskew, 21, S_IWUGO, 0, 1)
-FLAG(tx, dc_balance, 21, (S_IRUGO|S_IWUGO), 1, 1)
-FLAG(tx, toggle, 21, (S_IRUGO|S_IWUGO), 2, 1)
-FLAG(tx, resync, 21, S_IWUGO, 3, 1)
-FLAG(tx, rst, 21, S_IWUGO, 7, 1)
-
-FLAG(mem, req, 20, (S_IRUGO|S_IWUGO), 0, 1)
-
-static struct attribute *rec_attrs[] = {
-    &dev_attr_rec_input_select.attr,
-    &dev_attr_rec_stream_valid.attr,
-    &dev_attr_rec_rst.attr,
-    NULL
-};
-
-static struct attribute *trig_attrs[] = {
-    &dev_attr_trig_type.attr,
-    &dev_attr_trig_arm.attr,
-    &dev_attr_trig_int.attr,
-    &dev_attr_trig_rst.attr,
-    NULL
-};
-
-static struct attribute *avg_attrs[] = {
-    &dev_attr_avg_width.attr,
-    &dev_attr_avg_active.attr,
-    &dev_attr_avg_err.attr,
-    &dev_attr_avg_rst.attr,
-    NULL
-};
-
-static struct attribute *core_attrs[] = {
-    &dev_attr_core_scale_sch.attr,
-    &dev_attr_core_scale_schi.attr,
-    &dev_attr_core_L.attr,
-    &dev_attr_core_cmul_sch.attr,
-    &dev_attr_core_n.attr,
-    &dev_attr_core_iq.attr,
-    &dev_attr_core_start.attr,
-    &dev_attr_core_ov_fft.attr,
-    &dev_attr_core_ov_ifft.attr,
-    &dev_attr_core_ov_cmul.attr,
-    &dev_attr_core_rst.attr,
-    NULL
-};
-
-static struct attribute *tx_attrs[] = {
-    &dev_attr_tx_muli.attr,
-    &dev_attr_tx_mulq.attr,
-    &dev_attr_tx_frame_offset.attr,
-    &dev_attr_tx_deskew.attr,
-    &dev_attr_tx_dc_balance.attr,
-    &dev_attr_tx_toggle.attr,
-    &dev_attr_tx_resync.attr,
-    &dev_attr_tx_rst.attr,
-    NULL
-};
-
+#define FPGA_FLAGC(_base, _name, _mode, _offset, _bit, _width, _max, _show, _store) \
+        struct fpga_flag_attribute dev_attr_##_base##_##_name = \
+                { __ATTR(_name, _mode, _show, _store),\
+                    _offset, ((1<<(_width))-1)<<_bit, _bit, _width, _max }
+#define FPGA_FLAG(_base, _name, _mode, _offset, _bit, _width) \
+    FPGA_FLAGC(_base, _name, _mode, _offset, _bit, _width, 0, fpga_flag_show, fpga_flag_store)
+#define FPGA_FLAGM(_base, _name, _mode, _offset, _bit, _width, _max) \
+    FPGA_FLAGC(_base, _name, _mode, _offset, _bit, _width, _max, fpga_flag_show, fpga_flag_store)
 #define ATTR_INT(name) struct device_attribute dev_attr_int_##name = \
         __ATTR(name, 0, NULL, NULL)
+
+FPGA_FLAG(rec0, enable, 0660, REG0_OFFSET, 0, 1);
+FPGA_FLAG(rec0, polarity, 0660, REG0_OFFSET, 1, 1);
+FPGA_FLAG(rec0, descramble, 0660, REG0_OFFSET, 2, 1);
+FPGA_FLAG(rec0, rxeqmix, 0660, REG0_OFFSET, 3, 2);
+FPGA_FLAG(rec0, data_valid, 0440, REG0_OFFSET, 5, 1);
+FPGA_FLAG(rec1, enable, 0660, REG0_OFFSET, 8, 1);
+FPGA_FLAG(rec1, polarity, 0660, REG0_OFFSET, 9, 1);
+FPGA_FLAG(rec1, descramble, 0660, REG0_OFFSET, 10, 1);
+FPGA_FLAG(rec1, rxeqmix, 0660, REG0_OFFSET, 11, 2);
+FPGA_FLAG(rec1, data_valid, 0440, REG0_OFFSET, 13, 1);
+FPGA_FLAG(rec2, enable, 0660, REG0_OFFSET, 16, 1);
+FPGA_FLAG(rec2, polarity, 0660, REG0_OFFSET, 17, 1);
+FPGA_FLAG(rec2, descramble, 0660, REG0_OFFSET, 18, 1);
+FPGA_FLAG(rec2, rxeqmix, 0660, REG0_OFFSET, 19, 2);
+FPGA_FLAG(rec2, data_valid, 0440, REG0_OFFSET, 21, 1);
+FPGA_FLAG(rec, input_select, 0660, REG0_OFFSET, 24, 2);
+FPGA_FLAG(rec, stream_valid, 0440, REG0_OFFSET, 26, 1);
+FPGA_FLAG(rec, rst, 0220, REG0_OFFSET, 31, 1);
+FPGA_FLAGM(_, depth, 0660, REG1_OFFSET, 0, 16, 49152);
+FPGA_FLAG(trig, type, 0660, REG1_OFFSET, 16, 1);
+FPGA_FLAG(trig, arm, 0660, REG1_OFFSET, 18, 1);
+FPGA_FLAG(trig, int, 0220, REG1_OFFSET, 19, 1);
+FPGA_FLAG(trig, rst, 0220, REG1_OFFSET, 23, 1);
+FPGA_FLAG(avg, width, 0660, REG1_OFFSET, 24, 2);
+FPGA_FLAG(avg, active, 0440, REG1_OFFSET, 26, 1);
+FPGA_FLAG(avg, err, 0440, REG1_OFFSET, 27, 1);
+FPGA_FLAG(avg, rst, 0220, REG1_OFFSET, 31, 1);
+FPGA_FLAGC(core, scale_sch, 0660, 10, 0, 0, 0, scale_sch_show, scale_sch_store);
+FPGA_FLAGC(core, scale_schi, 0660, 8, 0, 0, 0, scale_sch_show, scale_sch_store);
+FPGA_FLAGM(core, L, 0660, REG3_OFFSET, 0, 12, 4096);
+FPGA_FLAG(core, cmul_sch, 0660, REG3_OFFSET, 14, 2);
+FPGA_FLAGC(core, n, 0660, REG3_OFFSET, 16, 5, 0, core_n_show, core_n_store);
+FPGA_FLAG(core, iq, 0660, REG3_OFFSET, 24, 1);
+FPGA_FLAG(core, start, 0660, REG3_OFFSET, 25, 1);
+FPGA_FLAG(core, ov_fft, 0440, REG3_OFFSET, 26, 1);
+FPGA_FLAG(core, ov_ifft, 0440, REG3_OFFSET, 27, 1);
+FPGA_FLAG(core, ov_cmul, 0440, REG3_OFFSET, 28, 1);
+FPGA_FLAG(core, rst, 0220, REG3_OFFSET, 31, 1);
+FPGA_FLAG(tx, muli, 0660, REG4_OFFSET, 0, 16);
+FPGA_FLAG(tx, mulq, 0660, REG4_OFFSET, 16, 16);
+FPGA_FLAG(tx, frame_offset, 0660, REG5_OFFSET, 0, 16);
+FPGA_FLAG(tx, deskew, 0220, REG5_OFFSET, 16, 1);
+FPGA_FLAG(tx, dc_balance, 0660, REG5_OFFSET, 17, 1);
+FPGA_FLAG(tx, toggle, 0660, REG5_OFFSET, 18, 1);
+FPGA_FLAG(tx, resync, 0220, REG5_OFFSET, 19, 1);
+FPGA_FLAG(tx, rst, 0220, REG5_OFFSET, 23, 1);
+FPGA_FLAG(mem, req, 0660, REG5_OFFSET, 24, 1);
 ATTR_INT(rec0_valid);
 ATTR_INT(rec0_invalid);
 ATTR_INT(rec1_valid);
@@ -368,6 +254,70 @@ ATTR_INT(avg_done);
 ATTR_INT(core_done);
 ATTR_INT(tx_toggled);
 ATTR_INT(tx_ovfl);
+
+#define RECEIVER_ATTRS(_num) \
+static struct attribute *receiver_attrs_##_num[] = { \
+    &dev_attr_rec##_num##_enable.attr.attr, \
+    &dev_attr_rec##_num##_polarity.attr.attr,\
+    &dev_attr_rec##_num##_descramble.attr.attr,\
+    &dev_attr_rec##_num##_rxeqmix.attr.attr,\
+    &dev_attr_rec##_num##_data_valid.attr.attr,\
+    NULL,\
+};
+
+RECEIVER_ATTRS(0)
+RECEIVER_ATTRS(1)
+RECEIVER_ATTRS(2)
+
+static struct attribute *rec_attrs[] = {
+    &dev_attr_rec_input_select.attr.attr,
+    &dev_attr_rec_stream_valid.attr.attr,
+    &dev_attr_rec_rst.attr.attr,
+    NULL
+};
+
+static struct attribute *trig_attrs[] = {
+    &dev_attr_trig_type.attr.attr,
+    &dev_attr_trig_arm.attr.attr,
+    &dev_attr_trig_int.attr.attr,
+    &dev_attr_trig_rst.attr.attr,
+    NULL
+};
+
+static struct attribute *avg_attrs[] = {
+    &dev_attr_avg_width.attr.attr,
+    &dev_attr_avg_active.attr.attr,
+    &dev_attr_avg_err.attr.attr,
+    &dev_attr_avg_rst.attr.attr,
+    NULL
+};
+
+static struct attribute *core_attrs[] = {
+    &dev_attr_core_scale_sch.attr.attr,
+    &dev_attr_core_scale_schi.attr.attr,
+    &dev_attr_core_L.attr.attr,
+    &dev_attr_core_cmul_sch.attr.attr,
+    &dev_attr_core_n.attr.attr,
+    &dev_attr_core_iq.attr.attr,
+    &dev_attr_core_start.attr.attr,
+    &dev_attr_core_ov_fft.attr.attr,
+    &dev_attr_core_ov_ifft.attr.attr,
+    &dev_attr_core_ov_cmul.attr.attr,
+    &dev_attr_core_rst.attr.attr,
+    NULL
+};
+
+static struct attribute *tx_attrs[] = {
+    &dev_attr_tx_muli.attr.attr,
+    &dev_attr_tx_mulq.attr.attr,
+    &dev_attr_tx_frame_offset.attr.attr,
+    &dev_attr_tx_deskew.attr.attr,
+    &dev_attr_tx_dc_balance.attr.attr,
+    &dev_attr_tx_toggle.attr.attr,
+    &dev_attr_tx_resync.attr.attr,
+    &dev_attr_tx_rst.attr.attr,
+    NULL
+};
 
 static struct attribute *int_attrs[] = {
     &dev_attr_int_rec0_valid.attr,
@@ -387,13 +337,14 @@ static struct attribute *int_attrs[] = {
 };
 
 static struct attribute *system_attrs[] = {
-    &dev_attr_depth.attr,
-    &dev_attr_mem_req.attr,
+    &dev_attr___depth.attr.attr,
+    &dev_attr_mem_req.attr.attr,
     NULL
 };
 
 static struct attribute_group groups[] = {
     {
+        .name = NULL,
         .attrs = system_attrs,
     },
     {
@@ -443,13 +394,15 @@ static irqreturn_t edev_isr(int irq, void *dev_id)
     struct emce_device *edev = dev_get_drvdata(dev_id);
 
     u32 status;
+    int i;
 
     status = in_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET);
     out_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET, status);
 
     dev_dbg(dev,"got intr 0x%x",status);
-// sysfs_notify(kobj, dir, attr)
-//    sysfs_notify(&dev->kobj, NULL, "intr"); // dir attr TODO
+    for(i=0; int_attrs[i]; i++)
+        if((status >> i) & 1)
+            sysfs_notify(&dev->kobj, "int", int_attrs[i]->name);
 
     return IRQ_HANDLED;
 }
