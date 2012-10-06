@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>ml 507</title>
+        <link href="css/bootstrap.min.css" rel="stylesheet">
+        <link href="css/emce.css" rel="stylesheet">
+    </head>
+    <body>
+        <div class="pull-left frame" id="receiver">
+            <span class="desc">Receiver</span>
+            <div class="pull-left frame">
+                <span class="desc">GTX</span>
+                <div class="btn-toolbar" id="gtx0">
+                    <span>0:</span>
+                    <a class="btn btn-small active" href="#" id="enable" rel="tooltip" title="enable"><i class="icon-off"></i></a>
+                    <a class="btn btn-small" href="#" id="polarity" rel="tooltip" title="polarity"><i class="icon-plus-sign"></i></a>
+                    <a class="btn btn-small active" href="#" id="descramble" rel="tooltip" title="descramble"><i class="icon-random"></i></a>
+                    <div class="btn-group" id="rxeqmix">
+                        <a class="btn btn-small dropdown-toggle" data-toggle="dropdown" href="#" rel="tooltip" title="rx eq">
+                            <i class="icon-signal"></i>
+                            00
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a tabindex="-1" href="#" id="00">00</a></li>
+                            <li><a tabindex="-1" href="#" id="01">01</a></li>
+                            <li><a tabindex="-1" href="#" id="10">10</a></li>
+                            <li><a tabindex="-1" href="#" id="11">11</a></li>
+                        </ul>
+                    </div>
+                    <a class="btn btn-small btn-success disabled" href="#" id="data_valid"><i class="icon-ok"></i></a>
+                </div>
+                <div class="btn-toolbar" id="gtx1">
+                    <span>1:</span>
+                    <a class="btn btn-small active" href="#" id="enable" rel="tooltip" title="enable"><i class="icon-off"></i></a>
+                    <a class="btn btn-small" href="#" id="polarity" rel="tooltip" title="polarity"><i class="icon-plus-sign"></i></a>
+                    <a class="btn btn-small active" href="#" id="descramble" rel="tooltip" title="descramble"><i class="icon-random"></i></a>
+                    <div class="btn-group" id="rxeqmix">
+                        <a class="btn btn-small dropdown-toggle" data-toggle="dropdown" href="#" rel="tooltip" title="rx eq">
+                            <i class="icon-signal"></i>
+                            00
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a tabindex="-1" href="#" id="00">00</a></li>
+                            <li><a tabindex="-1" href="#" id="01">01</a></li>
+                            <li><a tabindex="-1" href="#" id="10">10</a></li>
+                            <li><a tabindex="-1" href="#" id="11">11</a></li>
+                        </ul>
+                    </div>
+                    <a class="btn btn-small btn-success disabled" href="#" id="data_valid"><i class="icon-ok"></i></a>
+                </div>
+                <div class="btn-toolbar" id="gtx2">
+                    <span>2:</span>
+                    <a class="btn btn-small active" href="#" id="enable" rel="tooltip" title="enable"><i class="icon-off"></i></a>
+                    <a class="btn btn-small" href="#" id="polarity" rel="tooltip" title="polarity"><i class="icon-plus-sign"></i></a>
+                    <a class="btn btn-small active" href="#" id="descramble" rel="tooltip" title="descramble"><i class="icon-random"></i></a>
+                    <div class="btn-group" id="rxeqmix">
+                        <a class="btn btn-small dropdown-toggle" data-toggle="dropdown" href="#" rel="tooltip" title="rx eq">
+                            <i class="icon-signal"></i>
+                            00
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a tabindex="-1" href="#" id="00">00</a></li>
+                            <li><a tabindex="-1" href="#" id="01">01</a></li>
+                            <li><a tabindex="-1" href="#" id="10">10</a></li>
+                            <li><a tabindex="-1" href="#" id="11">11</a></li>
+                        </ul>
+                    </div>
+                    <a class="btn btn-small btn-success disabled" href="#" id="data_valid"><i class="icon-ok"></i></a>
+                </div>
+            </div>
+            <a class="btn btn-small btn-warning reset" href="#" id="rst"><i class="icon-repeat"></i></a>
+            <div class="pull-left frame">
+                <span class="desc">Multiplexer</span>
+                <div class="btn-toolbar">
+                    <div class="btn-group" id="input_select">
+                        <a class="btn btn-small dropdown-toggle" data-toggle="dropdown" href="#" rel="tooltip" title="input select">
+                            gtx0
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a tabindex="-1" href="#" id="0">gtx0</a></li>
+                            <li><a tabindex="-1" href="#" id="1">gtx1</a></li>
+                            <li><a tabindex="-1" href="#" id="2">gtx2</a></li>
+                        </ul>
+                    </div>
+                    <a class="btn btn-small btn-success disabled" href="#" id="stream_valid"><i class="icon-ok"></i></a>
+                </div>
+            </div>
+        </div>
+        <div class="frame pull-left">
+            <span class="desc">Inbuf</span>
+            <div class="frame pull-left" id="avg">
+                <span class="desc">Average</span>
+                <a class="btn btn-small btn-warning reset" href="#" id="rst"><i class="icon-repeat"></i></a>
+                <div class="btn-toolbar">
+                    <div class="btn-group" id="width">
+                        <a class="btn btn-small dropdown-toggle" data-toggle="dropdown" href="#" rel="tooltip" title="Averaging">
+                            Off
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a tabindex="-1" href="#" id="0">Off</a></li>
+                            <li><a tabindex="-1" href="#" id="2">2x</a></li>
+                            <li><a tabindex="-1" href="#" id="4">4x</a></li>
+                            <li><a tabindex="-1" href="#" id="8">8x</a></li>
+                        </ul>
+                    </div>
+                    <a class="btn btn-small btn-success disabled" href="#" id="ok"><i class="icon-ok"></i></a>
+                </div>
+            </div>
+            <div class="frame pull-left" id="trig">
+                <span class="desc">Trigger</span>
+                <a class="btn btn-small btn-warning reset" href="#" id="rst"><i class="icon-repeat"></i></a>
+                <div class="btn-toolbar">
+                    <div class="btn-group" id="type">
+                        <a class="btn btn-small dropdown-toggle" data-toggle="dropdown" href="#" rel="tooltip" title="Type">
+                            Int
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a tabindex="-1" href="#" id="int">Int</a></li>
+                            <li><a tabindex="-1" href="#" id="ext">Ext</a></li>
+                        </ul>
+                    </div>
+                    <a class="btn btn-small" href="#" rel="tooltip" id="arm" title="arm"><i class="icon-play"></i></a>
+                    <a class="btn btn-small" href="#" rel="tooltip" title="trigger" id="int"><i class="icon-chevron-down"></i></a>
+                    <a class="btn btn-small btn-success disabled" href="#" id="ok"><i class="icon-ok"></i></a>
+                </div>
+            </div>
+            <form class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="depth">depth</label>
+                    <div class="controls">
+                        <input type="text" class="span1" id="depth">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="frame pull-left" id="core">
+            <span class="desc">Overlap Add</span>
+            <a class="btn btn-small btn-warning reset" href="#" id="rst"><i class="icon-repeat"></i></a>
+            <div class="btn-toolbar">
+                <div class="btn-group" id="n">
+                    <a class="btn btn-small dropdown-toggle" data-toggle="dropdown" href="#" rel="tooltip" title="n (fft)">
+                        8
+                        <span class="caret"></span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a tabindex="-1" href="#" id="8">8</a></li>
+                        <li><a tabindex="-1" href="#" id="18">16</a></li>
+                        <li><a tabindex="-1" href="#" id="32">32</a></li>
+                        <li><a tabindex="-1" href="#" id="64">64</a></li>
+                        <li><a tabindex="-1" href="#" id="128">128</a></li>
+                        <li><a tabindex="-1" href="#" id="256">256</a></li>
+                        <li><a tabindex="-1" href="#" id="512">512</a></li>
+                        <li><a tabindex="-1" href="#" id="1024">1024</a></li>
+                        <li><a tabindex="-1" href="#" id="2048">2048</a></li>
+                        <li><a tabindex="-1" href="#" id="4096">4096</a></li>
+                    </ul>
+                </div>
+                <a class="btn btn-small active" href="#" rel="tooltip" title="iq decode" id="iq_decode"><i class="icon-cog"></i></a>
+                <a class="btn btn-small" href="#" rel="tooltip" title="start" id="start"><i class="icon-play"></i></a>
+                <a class="btn btn-small btn-success disabled" href="#" id="ok"><i class="icon-ok"></i></a>
+            </div>
+            <form class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="L">L</label>
+                    <div class="controls">
+                        <input type="text" class="span1" id="L">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="scale_sch">scale_sch</label>
+                    <div class="controls">
+                        <input type="text" class="span2" id="scale_sch">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="scale_schi">scale_schi</label>
+                    <div class="controls">
+                        <input type="text" class="span2" id="scale_schi">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="cmul_sch">cmul_sch</label>
+                    <div class="controls">
+                        <input type="text" class="span1" id="cmul_sch">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="frame pull-left" id="tx">
+            <span class="desc">Transmitter</span>
+            <a class="btn btn-small btn-warning reset" href="#" id="rst"><i class="icon-repeat"></i></a>
+            <div class="btn-toolbar">
+                <a class="btn btn-small" href="#" rel="tooltip" title="deskew" id="deskew"><i class="icon-align-left"></i></a>
+                <a class="btn btn-small active" href="#" rel="tooltip" title="dc balance" id="dc_balance"><i class="icon-adjust"></i></a>
+                <a class="btn btn-small" href="#" rel="tooltip" title="toggle" id="toggle"><i class="icon-retweet"></i></a>
+                <a class="btn btn-small" href="#" rel="tooltip" title="resync" id="resync"><i class="icon-resize-horizontal"></i></a>
+            </div>
+            <form class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="muli">muli</label>
+                    <div class="controls">
+                        <input type="text" class="span1" id="muli">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="mulq">mulq</label>
+                    <div class="controls">
+                        <input type="text" class="span2" id="mulq">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="frame_offset">frame_offset</label>
+                    <div class="controls">
+                        <input type="text" class="span2" id="frame_offset">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="frame pull-left" id="log">
+            <span class="desc">Log</span>
+            <a class="btn btn-small reset" href="#" id="rst"><i class="icon-remove"></i></a>
+            <div class="console" id="log">
+                Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+            </div>
+        </div>
+        <div class="frame pull-left" id="data">
+            <span class="desc">Data</span>
+            <div class="row">
+                <div class="span2">Inbuf:</div>
+                <div class="span1">
+                    <div class="btn-group" id="emce0">
+                        <a class="btn btn-small" href="#" id="down"><i class="icon-arrow-down"></i></a>
+                        <a class="btn btn-small" href="#" id="up"><i class="icon-arrow-up"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="span2">H:</div>
+                <div class="span1">
+                    <div class="btn-group" id="emce1">
+                        <a class="btn btn-small" href="#" id="down"><i class="icon-arrow-down"></i></a>
+                        <a class="btn btn-small" href="#" id="up"><i class="icon-arrow-up"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="span2">Out active:</div>
+                <div class="span1">
+                    <div class="btn-group" id="emce2">
+                        <a class="btn btn-small" href="#" id="down"><i class="icon-arrow-down"></i></a>
+                        <a class="btn btn-small" href="#" id="up"><i class="icon-arrow-up"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="span2">Out inactive:</div>
+                <div class="span1">
+                    <div class="btn-group" id="emce3">
+                        <a class="btn btn-small" href="#" id="down"><i class="icon-arrow-down"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="js/jquery-1.8.2.min.js"></script>
+        <script src="js/bootstrap.min.js"></script>
+        <script src="js/emce.js"></script>
+    </body>
+</html>

@@ -1,0 +1,79 @@
+body {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+.sidebar-nav {
+    padding: 9px 0;
+}
+.btn-toolbar span {
+    font-size: 14px;
+    margin-right: 5px;
+}
+.btn-group span {
+    font-size: 14px;
+    margin-right: 5px;
+}
+.frame .frame {
+    margin-top: 0px;
+    margin-left: 0px;
+    margin-right: 5px;
+}
+.frame .frame:nth-last-of-type(1) {
+    margin-right: 0px;
+}
+.frame {
+    position: relative;
+    padding: 30px 14px 15px;
+    margin-left: 5px;
+    margin-right: 5px;
+    border: 1px solid #eee;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+    border-radius: 3px;
+    margin-bottom: 5px;
+}
+.frame span.desc {
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    padding: 3px 7px;
+    font-size: 12px;
+    font-weight: bold;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    color: #9da0a4;
+    -webkit-border-radius: 4px 0 4px 0;
+    -moz-border-radius: 4px 0 4px 0;
+    border-radius: 4px 0 4px 0;
+}
+.parent-frame {
+    padding: 3px;
+    padding-top: 33px;
+}
+.reset {
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    padding: 3px 7px;
+}
+.form-horizontal .control-label {
+    width: 80px;
+}
+.form-horizontal .controls {
+    margin-left: 90px;
+}
+.form-horizontal .control-group {
+    margin-bottom: 5px;
+}
+form {
+    margin-bottom: 5px;
+}
+.console {
+    overflow: auto;
+    width: 500px;
+    height: 150px;
+    background: black;
+    color: #eee;
+    font-family: Courier New, monospace;
+}
+
