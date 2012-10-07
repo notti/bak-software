@@ -1,8 +1,35 @@
 !function ($) {
     $(function(){
         // store old values 
+        // clear log
+        // append log
+        /*var b = new Blob([JSON.stringify({a: 1})],{type: "text\/json"});
+        var url = window.URL.createObjectURL(b); */
+
+        var values = {};
+
+        function elementToAttribute(element) {
+            var attribute = '';
+            var p = element.parents().map(function(k,v) { return v.id; }).filter(function(k,v) { return v;});
+            if (p.length)
+                attribute = p[0] + '/';
+            attribute += element.attr('id');
+            return attribute;
+        }
+
+        function log(line, color) {
+            $('#log.console').append('<span style="color: '+color+';">'+line+'</span></br>').scrollTop(10000);
+        }
+
+        function clearLog() {
+            $('#log.console').text('');
+        }
+
         function sendValue(target, value) {
-            console.log(target, value);
+            var line = '> ' + target;
+            if (value)
+                line+=' -> ' + value;
+            log(line, 'blue');
         }
 
         function setValue(target, value) {
@@ -40,6 +67,7 @@
                             element.removeClass('active');
                     }
                 } else if (element.is('input')) { //text
+                    values[target] = value;
                     element.attr('value', value);
                 } else {
                     console.log('unknown', target, value);
@@ -53,12 +81,14 @@
         $('.frame:has(.frame)').addClass('parent-frame');
         $('.btn:not(.disabled):not(.dropdown-toggle)').click(function(e) {
             var element = $(this);
-            var attribute = '';
-            var p = element.parents().map(function(k,v) { return v.id; }).filter(function(k,v) { return v;});
+            var attribute = elementToAttribute(element);
             var value = undefined;
-            if (p.length)
-                attribute = p[0] + '/';
-            attribute += element.attr('id');
+
+            if (attribute == 'log/rst') {
+                clearLog();
+                e.preventDefault();
+                return;
+            }
             if (element.hasClass('toggle'))
                 if (element.hasClass('active'))
                     value = '0';
@@ -81,22 +111,20 @@
         });
         $('input').change(function(e) {
             var element = $(this);
-            var attribute = '';
-            var p = element.parents().map(function(k,v) { return v.id; }).filter(function(k,v) { return v;});
-            var value = element.val();
-            if (p.length)
-                attribute = p[0] + '/';
-            attribute += element.attr('id');
-            console.log('check input');
+            var attribute = elementToAttribute(element);
+            var value = element.attr('value');
+            //check input
+            values[attribute] = value;
             sendValue(attribute, value);
         });
         $('input').on('input', function(e) {
-            console.log('check input');
+            //check input
         });
         $('input').keydown(function(e) {
             if(e.keyCode == 27) {
-                console.log('esc');
-                // restore old
+                var element = $(this);
+                var attribute = elementToAttribute(element);
+                $(this).attr('value',values[attribute]);
             }
         });
     });
