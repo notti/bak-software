@@ -230,13 +230,12 @@ FPGA_FLAG(avg, rst, 0220, REG1_OFFSET, 31, 1);
 FPGA_FLAGC(core, scale_sch, 0660, 10, 0, 0, 0, scale_sch_show, scale_sch_store);
 FPGA_FLAGC(core, scale_schi, 0660, 8, 0, 0, 0, scale_sch_show, scale_sch_store);
 FPGA_FLAGM(core, L, 0660, REG3_OFFSET, 0, 12, 4096);
-FPGA_FLAG(core, cmul_sch, 0660, REG3_OFFSET, 14, 2);
 FPGA_FLAGC(core, n, 0660, REG3_OFFSET, 16, 5, 0, core_n_show, core_n_store);
 FPGA_FLAG(core, iq, 0660, REG3_OFFSET, 24, 1);
 FPGA_FLAG(core, start, 0660, REG3_OFFSET, 25, 1);
 FPGA_FLAG(core, ov_fft, 0440, REG3_OFFSET, 26, 1);
 FPGA_FLAG(core, ov_ifft, 0440, REG3_OFFSET, 27, 1);
-FPGA_FLAG(core, ov_cmul, 0440, REG3_OFFSET, 28, 1);
+FPGA_FLAG(core, circular, 0660, REG3_OFFSET, 28, 1);
 FPGA_FLAG(core, rst, 0220, REG3_OFFSET, 31, 1);
 FPGA_FLAG(tx, muli, 0660, REG4_OFFSET, 0, 16);
 FPGA_FLAG(tx, mulq, 0660, REG4_OFFSET, 16, 16);
@@ -261,7 +260,6 @@ ATTR_INT(trigd);
 ATTR_INT(avg_done);
 ATTR_INT(core_done);
 ATTR_INT(tx_toggled);
-ATTR_INT(tx_ovfl);
 
 #define RECEIVER_ATTRS(_num) \
 static struct attribute *receiver_attrs_##_num[] = { \
@@ -304,13 +302,12 @@ static struct attribute *core_attrs[] = {
     &dev_attr_core_scale_sch.attr.attr,
     &dev_attr_core_scale_schi.attr.attr,
     &dev_attr_core_L.attr.attr,
-    &dev_attr_core_cmul_sch.attr.attr,
     &dev_attr_core_n.attr.attr,
     &dev_attr_core_iq.attr.attr,
     &dev_attr_core_start.attr.attr,
     &dev_attr_core_ov_fft.attr.attr,
     &dev_attr_core_ov_ifft.attr.attr,
-    &dev_attr_core_ov_cmul.attr.attr,
+    &dev_attr_core_circular.attr.attr,
     &dev_attr_core_rst.attr.attr,
     NULL
 };
@@ -340,7 +337,6 @@ static struct attribute *int_attrs[] = {
     &dev_attr_int_avg_done.attr,
     &dev_attr_int_core_done.attr,
     &dev_attr_int_tx_toggled.attr,
-    &dev_attr_int_tx_ovfl.attr,
     NULL
 };
 
