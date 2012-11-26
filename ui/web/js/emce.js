@@ -6,6 +6,16 @@
         /*var b = new Blob([JSON.stringify({a: 1})],{type: "text\/json"});
         var url = window.URL.createObjectURL(b); */
 
+        if (! ("WebSocket" in window)) WebSocket = MozWebSocket;
+        ws = new WebSocket("ws://"+location.hostname+":8080");
+        ws.onmessage = function(e) {
+            var m = JSON.parse(e.data);
+            console.log(m);
+        };
+        ws.onerror = function(e) {
+            console.log(e);
+        }
+
         var values = {};
 
         function elementToAttribute(element) {
