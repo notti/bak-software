@@ -1,16 +1,30 @@
 !function ($) {
     $(function(){
-        // store old values 
-        // clear log
-        // append log
-        /*var b = new Blob([JSON.stringify({a: 1})],{type: "text\/json"});
-        var url = window.URL.createObjectURL(b); */
-
         if (! ("WebSocket" in window)) WebSocket = MozWebSocket;
         ws = new WebSocket("ws://"+location.hostname+":8080");
         ws.onmessage = function(e) {
             var m = JSON.parse(e.data);
-            console.log(m);
+            var msg = e.data, color = 'red';
+            switch(m.cmd) {
+                case 'update':
+                case 'set': msg = m.target + ' = ' + m.value; color = 'green'; 
+                            setValue(m.target, m.value); break;
+                case 'do': msg = m.target + ' started'; color = 'yellow';
+                           if (m.target == 'trigger/arm') { query('trigger/arm'); }
+                           break;
+                case 'int': msg = m.target + ' <i class="icon-fire"></i>'; color = 'magenta'; 
+                    switch(m.target) {
+                        case 'avg_done': query('average/err'); break;
+                        case 'rec0_invalid': case 'rec0_valid': query('gtx0/data_valid'); break;
+                        case 'rec1_invalid': case 'rec1_valid': query('gtx0/data_valid'); break;
+                        case 'rec2_invalid': case 'rec2_valid': query('gtx0/data_valid'); break;
+                        case 'stream_invalid': case 'stream_valid': query('receiver/stream_valid'); break;
+                        case 'core_done': query('core/ov_ifft'); query('core/ov_fft'); break;
+                        case 'trigd': query('trigger/arm'); break;
+                    }
+                    break;
+            }
+            log('<i class="icon-arrow-left"></i> ' + msg, color);
         };
         ws.onerror = function(e) {
             console.log(e);
@@ -28,17 +42,31 @@
         }
 
         function log(line, color) {
-            $('#log.console').append('<span style="color: '+color+';">'+line+'</span></br>').scrollTop(10000);
+            var d = new Date();
+            var hh = d.getHours(), mm = d.getMinutes(), ss = d.getSeconds(), ms = d.getMilliseconds();
+            hh = ('0'+hh).substr(-2,2);
+            mm = ('0'+mm).substr(-2,2);
+            ss = ('0'+ss).substr(-2,2);
+            ms = ('00'+ms).substr(-3,3);
+            $('#log.console').append('<span style="color: '+color+';">['+hh+':'+mm+':'+ss+'.'+ms+'] '+line+'</span></br>').scrollTop(10000);
         }
 
         function clearLog() {
             $('#log.console').text('');
         }
 
+        function query(target) {
+            ws.send(JSON.stringify({cmd:'get', target:target}));
+        }
+
         function sendValue(target, value) {
-            var line = '> ' + target;
-            if (value)
-                line+=' -> ' + value;
+            var line = '<i class="icon-arrow-right"></i> ' + target;
+            if (value) {
+                line+=' = ' + value;
+                ws.send(JSON.stringify({cmd:'set', target:target, value:value}))
+            } else {
+                ws.send(JSON.stringify({cmd:'do', target:target}))
+            }
             log(line, 'blue');
         }
 
@@ -46,6 +74,7 @@
             var tmp = target.split('/');
             var filter = '#'+tmp[0];
             var element;
+            var st;
             if (tmp.length == 2) // aka a/b
                 filter += ' #' + tmp[1];
             element = $(filter + ' .value');
@@ -66,15 +95,45 @@
                             case '2': value = 'gtx2'; break;
                         }
                         break;
+                    case 'type':
+                        switch(value) {
+                            case '0': value = 'Int'; break;
+                            case '1': value = 'Ext'; break;
+                        }
+                        break;
+                    case 'rxeqmix':
+                        switch(value) {
+                            case '0': value = '00'; break;
+                            case '1': value = '01'; break;
+                            case '2': value = '10'; break;
+                            case '3': value = '11'; break;
+                        }
+                        break;
                 }
                 element.text(value);
             } else if ((element = $(filter)).length) { 
                 if (element.is('a')) { //button
-                    if (element.hasClass('toggle')) { //toggle button
+                    if (tmp[1] == 'arm') {
+                        if (parseInt(value)) {
+                            element.addClass('btn-warning disabled');
+                        } else {
+                            element.removeClass('btn-warning disabled');
+                        }
+                    } else if (element.hasClass('toggle')) { //toggle button
                         if (parseInt(value))
                             element.addClass('active');
                         else
                             element.removeClass('active');
+                    } else if ((st = element.attr('status')) != undefined) { //status button
+                        if (parseInt(value) == st) {
+                            element.removeClass('btn-danger');
+                            element.addClass('btn-success');
+                            element.html('<i class="icon-ok"></i>');
+                        } else {
+                            element.removeClass('btn-success');
+                            element.addClass('btn-danger');
+                            element.html('<i class="icon-remove"></i>');
+                        }
                     }
                 } else if (element.is('input')) { //text
                     values[target] = value;
@@ -89,7 +148,7 @@
 
         $('a[rel=tooltip]').tooltip();
         $('.frame:has(.frame)').addClass('parent-frame');
-        $('.btn:not(.disabled):not(.dropdown-toggle)').click(function(e) {
+        $('.btn:not(.disabled):not(.dropdown-toggle):not(.link)').click(function(e) {
             var element = $(this);
             var attribute = elementToAttribute(element);
             var value = undefined;
