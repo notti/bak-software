@@ -246,6 +246,10 @@ FPGA_FLAG(tx, toggle, 0660, REG5_OFFSET, 18, 1);
 FPGA_FLAG(tx, resync, 0220, REG5_OFFSET, 19, 1);
 FPGA_FLAG(tx, rst, 0220, REG5_OFFSET, 23, 1);
 FPGA_FLAG(mem, req, 0660, REG5_OFFSET, 24, 1);
+FPGA_FLAG(tx, data_zero, 0660, REG5_OFFSET, 28, 1);
+FPGA_FLAG(tx, data_enable, 0660, REG5_OFFSET, 29, 1);
+FPGA_FLAG(tx, data_valid, 0660, REG5_OFFSET, 30, 1);
+FPGA_FLAG(tx, clk_en, 0660, REG5_OFFSET, 31, 1);
 ATTR_INT(rec0_valid);
 ATTR_INT(rec0_invalid);
 ATTR_INT(rec1_valid);
@@ -321,6 +325,10 @@ static struct attribute *tx_attrs[] = {
     &dev_attr_tx_toggle.attr.attr,
     &dev_attr_tx_resync.attr.attr,
     &dev_attr_tx_rst.attr.attr,
+    &dev_attr_tx_data_zero.attr.attr,
+    &dev_attr_tx_data_enable.attr.attr,
+    &dev_attr_tx_data_valid.attr.attr,
+    &dev_attr_tx_clk_en.attr.attr,
     NULL
 };
 
