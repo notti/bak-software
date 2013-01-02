@@ -16,8 +16,8 @@
                     switch(m.target) {
                         case 'avg_done': query('average/err'); break;
                         case 'rec0_invalid': case 'rec0_valid': query('gtx0/data_valid'); break;
-                        case 'rec1_invalid': case 'rec1_valid': query('gtx0/data_valid'); break;
-                        case 'rec2_invalid': case 'rec2_valid': query('gtx0/data_valid'); break;
+                        case 'rec1_invalid': case 'rec1_valid': query('gtx1/data_valid'); break;
+                        case 'rec2_invalid': case 'rec2_valid': query('gtx2/data_valid'); break;
                         case 'stream_invalid': case 'stream_valid': query('receiver/stream_valid'); break;
                         case 'core_done': query('core/ov_ifft'); query('core/ov_fft'); break;
                         case 'trigd': query('trigger/arm'); break;
