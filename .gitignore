@@ -1,3 +1,6 @@
+.DS_Store
+*.swp
 twistd.pid
 twistd.log
 *.pyc
+
