@@ -70,6 +70,28 @@
             log(line, 'blue');
         }
 
+        function checkInput(element, value) {
+            var ok = true;
+            if (!isFinite(value) || value == '') {
+                ok = false;
+            } else if (element.attr('scale_sch')) {
+                ok = /^[01]+$/.test(value);
+            } else {
+                var value = parseInt(value);
+                var min = parseInt(element.attr('min'));
+                var max = parseInt(element.attr('max'));
+                if (value < min || value > max || isNaN(value)) {
+                    ok = false;
+                }
+            }
+            if (ok) {
+                element.parent().parent().removeClass('error').addClass('success');
+            } else {
+                element.parent().parent().removeClass('success').addClass('error');
+            }
+            return ok;
+        }
+
         function setValue(target, value) {
             var tmp = target.split('/');
             var filter = '#'+tmp[0];
@@ -138,6 +160,7 @@
                 } else if (element.is('input')) { //text
                     values[target] = value;
                     element.attr('value', value);
+                    checkInput(element, value);
                 } else {
                     console.log('unknown', target, value);
                 }
@@ -146,9 +169,27 @@
             }
         }
 
+        $(':file').filestyle({icon: true, textField: false, buttonText: '', classButton: 'btn btn-small', classIcon: 'icon-arrow-up'}).change(function(e) {
+            var element = $(this).parent();
+            var formData = new FormData(element[0]);
+            var url = '/data/' + element.attr('id');
+            var type = element.attr('desc');
+            var name = this.files[0].name;
+            $.ajax({
+                url: url,
+                type: 'POST',
+                beforeSend: function (jqXHR, settings) { log(name + ' <i class="icon-arrow-right"></i> '  + type, 'blue'); },
+                success: function (data, textStatus, jqXHR) { log(name + ' uploaded.', 'green'); } ,
+                error: function (jqXHR, textStatus, errorThrown) { log(name + ' failed: ' + textStatus, 'red'); },
+                data: formData,
+                cache: false,
+                processData: false
+            });
+        });
+        $('a').attr('tabindex', -1);
         $('a[rel=tooltip]').tooltip();
         $('.frame:has(.frame)').addClass('parent-frame');
-        $('.btn:not(.disabled):not(.dropdown-toggle):not(.link)').click(function(e) {
+        $('.btn:not(.disabled):not(.dropdown-toggle):not(.link):not(button)').click(function(e) {
             var element = $(this);
             var attribute = elementToAttribute(element);
             var value = undefined;
@@ -182,18 +223,29 @@
             var element = $(this);
             var attribute = elementToAttribute(element);
             var value = element.attr('value');
-            //check input
-            values[attribute] = value;
-            sendValue(attribute, value);
-        });
-        $('input').on('input', function(e) {
-            //check input
+            if (checkInput(element, value)) {
+                values[attribute] = value;
+                sendValue(attribute, value);
+            }
         });
         $('input').keydown(function(e) {
-            if(e.keyCode == 27) {
+            if (e.which == 27) {
                 var element = $(this);
                 var attribute = elementToAttribute(element);
-                $(this).attr('value',values[attribute]);
+                $(this).attr('value', values[attribute]);
+                checkInput(element, values[attribute]);
+            }
+        });
+        $('input').keypress(function(e) {
+            if (e.which == 13) {
+                var element = $(this);
+                var attribute = elementToAttribute(element);
+                var value = element.attr('value');
+                if (checkInput(element, value)) {
+                    values[attribute] = value;
+                    sendValue(attribute, value);
+                }
+                e.preventDefault();
             }
         });
     });

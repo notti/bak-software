@@ -187,6 +187,7 @@
                 </div>
             </form>
         </div>
+        <div style="clear:both"></div>
         <div class="frame pull-left" id="transmitter">
             <span class="desc">Transmitter</span>
             <a class="btn btn-small btn-warning reset" href="#" id="rst"><i class="icon-repeat"></i></a>
@@ -228,27 +229,33 @@
             <div class="row">
                 <div class="span2">Inbuf:</div>
                 <div class="span1">
-                    <div class="btn-group" id="emce0">
-                        <a class="btn btn-small link" href="/data/emce0"><i class="icon-arrow-down"></i></a>
-                        <a class="btn btn-small" href="#" id="up"><i class="icon-arrow-up"></i></a>
+                    <div class="btn-group">
+                        <form enctype="multipart/form-data" id="emce0" desc="Inbuf">
+                            <a class="btn btn-small link" href="/data/emce0"><i class="icon-arrow-down"></i></a>
+                            <input type="file" id="up">
+                        </form>
                     </div>
                 </div>
             </div>
             <div class="row">
                 <div class="span2">H:</div>
                 <div class="span1">
-                    <div class="btn-group" id="emce1">
-                        <a class="btn btn-small link" href="/data/emce1"><i class="icon-arrow-down"></i></a>
-                        <a class="btn btn-small" href="#" id="up"><i class="icon-arrow-up"></i></a>
+                    <div class="btn-group">
+                        <form enctype="multipart/form-data" id="emce1" desc="H">
+                            <a class="btn btn-small link" href="/data/emce1"><i class="icon-arrow-down"></i></a>
+                            <input type="file" id="up">
+                        </form>
                     </div>
                 </div>
             </div>
             <div class="row">
                 <div class="span2">Out inactive:</div>
                 <div class="span1">
-                    <div class="btn-group" id="emce2">
-                        <a class="btn btn-small link" href="/data/emce2"><i class="icon-arrow-down"></i></a>
-                        <a class="btn btn-small" href="#" id="up"><i class="icon-arrow-up"></i></a>
+                    <div class="btn-group">
+                        <form enctype="multipart/form-data" id="emce2" desc="Out inactive">
+                            <a class="btn btn-small link" href="/data/emce2"><i class="icon-arrow-down"></i></a>
+                            <input type="file" id="up">
+                        </form>
                     </div>
                 </div>
             </div>
@@ -263,6 +270,7 @@
         </div>
         <script src="js/jquery-1.8.2.min.js"></script>
         <script src="js/bootstrap.min.js"></script>
+        <script src="js/bootstrap-filestyle-0.1.0.min.js"></script>
         <script src="js/emce.js"></script>
     </body>
 </html>

@@ -5,6 +5,7 @@ from twisted.internet import protocol, threads, reactor
 from txws import WebSocketFactory
 import emce
 import json
+import csv
 
 hardware = emce.hardware()
 
@@ -50,6 +51,25 @@ class Data(resource.Resource):
             return 'Not Found'
         request.setHeader("content-disposition" ,"attachment;filename=mem.csv")
         request.setHeader("content-type" ,"text/csv")
+        threads.deferToThread(putfile, request).addCallback(done)
+        return server.NOT_DONE_YET
+
+    def render_POST(self, request):
+        def putfile(request):
+            with hardware(request.postpath[0], 'w') as f:
+                vals = csv.reader(request.content)
+                for row in vals:
+                    try:
+                        real, imag = row
+                    except:
+                        real = row[0]
+                        imag = 0
+                    f.write(int(real), int(imag))
+        def done(x):
+            request.finish()
+        if not len(request.postpath) or request.postpath[0] not in ('emce0', 'emce1', 'emce2', 'emce3'):
+            request.setResponseCode(404)
+            return 'Not Found'
         threads.deferToThread(putfile, request).addCallback(done)
         return server.NOT_DONE_YET
 

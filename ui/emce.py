@@ -42,6 +42,18 @@ class memory:
             while not int(f.read()):
                 f.seek(0)
         self.f = open('/dev/'+mem, mode + 'b')
+        if mem == 'emce0':
+            self.write = self.writereal
+            self.packer = struct.Struct('h')
+        else:
+            self.write = self.writecomplex
+            self.packer = struct.Struct('hh')
+
+    def writereal(self, real, imag):
+        self.f.write(self.packer.pack(real))
+
+    def writecomplex(self, real, imag):
+        self.f.write(self.packer.pack(imag, real))
 
     def __enter__(self):
         return self
