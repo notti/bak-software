@@ -171,10 +171,11 @@
 
         $(':file').filestyle({icon: true, textField: false, buttonText: '', classButton: 'btn btn-small', classIcon: 'icon-arrow-up'}).change(function(e) {
             var element = $(this).parent();
-            var formData = new FormData(element[0]);
+            var formData = new FormData();
             var url = '/data/' + element.attr('id');
             var type = element.attr('desc');
             var name = this.files[0].name;
+            formData.append('data', this.files[0]);
             $.ajax({
                 url: url,
                 type: 'POST',
@@ -183,8 +184,10 @@
                 error: function (jqXHR, textStatus, errorThrown) { log(name + ' failed: ' + textStatus, 'red'); },
                 data: formData,
                 cache: false,
+                contentType: false,
                 processData: false
             });
+            element[0].reset();
         });
         $('a').attr('tabindex', -1);
         $('a[rel=tooltip]').tooltip();

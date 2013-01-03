@@ -57,7 +57,7 @@ class Data(resource.Resource):
     def render_POST(self, request):
         def putfile(request):
             with hardware(request.postpath[0], 'w') as f:
-                vals = csv.reader(request.content)
+                vals = csv.reader(request.args['data'][0].splitlines())
                 for row in vals:
                     try:
                         real, imag = row
@@ -67,10 +67,14 @@ class Data(resource.Resource):
                     f.write(int(real), int(imag))
         def done(x):
             request.finish()
+        def fail(x):
+            request.setResponseCode(500)
+            request.write('fail')
+            request.finish()
         if not len(request.postpath) or request.postpath[0] not in ('emce0', 'emce1', 'emce2', 'emce3'):
             request.setResponseCode(404)
             return 'Not Found'
-        threads.deferToThread(putfile, request).addCallback(done)
+        threads.deferToThread(putfile, request).addCallback(done).addErrback(fail)
         return server.NOT_DONE_YET
 
 class Stuff(static.File):
