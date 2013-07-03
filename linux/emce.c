@@ -187,7 +187,8 @@ ssize_t mul_show(struct device *dev, struct device_attribute *attr, char *buf)
     struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
     s32 value = (s32)in_be32(edev->base_address + eflag->offset);
 
-    value &= eflag->mask;
+    if (!eflag->shift)
+        value <<= 16;
     value >>= eflag->shift;
 
     return snprintf(buf, PAGE_SIZE, "%d\n", value);
