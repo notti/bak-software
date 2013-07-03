@@ -277,10 +277,8 @@ FPGA_FLAG(tx, toggle, 0660, REG5_OFFSET, 18, 1);
 FPGA_FLAG(tx, resync, 0220, REG5_OFFSET, 19, 1);
 FPGA_FLAG(tx, rst, 0220, REG5_OFFSET, 23, 1);
 FPGA_FLAG(mem, req, 0660, REG5_OFFSET, 24, 1);
-FPGA_FLAG(tx, data_zero, 0660, REG5_OFFSET, 28, 1);
-FPGA_FLAG(tx, data_enable, 0660, REG5_OFFSET, 29, 1);
-FPGA_FLAG(tx, data_valid, 0660, REG5_OFFSET, 30, 1);
-FPGA_FLAG(tx, clk_en, 0660, REG5_OFFSET, 31, 1);
+FPGA_FLAG(tx, ovfl, 0660, REG5_OFFSET, 30, 1);
+FPGA_FLAG(tx, shift, 0660, REG5_OFFSET, 31, 1);
 ATTR_INT(rec0_valid);
 ATTR_INT(rec0_invalid);
 ATTR_INT(rec1_valid);
@@ -295,6 +293,7 @@ ATTR_INT(trigd);
 ATTR_INT(avg_done);
 ATTR_INT(core_done);
 ATTR_INT(tx_toggled);
+ATTR_INT(tx_ovfl);
 
 #define RECEIVER_ATTRS(_num) \
 static struct attribute *receiver_attrs_##_num[] = { \
@@ -356,10 +355,8 @@ static struct attribute *tx_attrs[] = {
     &dev_attr_tx_toggle.attr.attr,
     &dev_attr_tx_resync.attr.attr,
     &dev_attr_tx_rst.attr.attr,
-    &dev_attr_tx_data_zero.attr.attr,
-    &dev_attr_tx_data_enable.attr.attr,
-    &dev_attr_tx_data_valid.attr.attr,
-    &dev_attr_tx_clk_en.attr.attr,
+    &dev_attr_tx_ovfl.attr.attr,
+    &dev_attr_tx_shift.attr.attr,
     NULL
 };
 
@@ -376,6 +373,7 @@ static struct attribute *int_attrs[] = {
     &dev_attr_int_avg_done.attr,
     &dev_attr_int_core_done.attr,
     &dev_attr_int_tx_toggled.attr,
+    &dev_attr_int_tx_ovfl.attr,
     NULL
 };
 
