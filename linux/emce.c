@@ -181,6 +181,37 @@ ssize_t core_n_store(struct device *dev, struct device_attribute *attr,
     return size;
 }
 
+ssize_t mul_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    struct emce_device *edev = dev_get_drvdata(dev);
+    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+    s32 value = (s32)in_be32(edev->base_address + eflag->offset);
+
+    value &= eflag->mask;
+    value >>= eflag->shift;
+
+    return snprintf(buf, PAGE_SIZE, "%d\n", value);
+}
+
+ssize_t mul_store(struct device *dev, struct device_attribute *attr,
+                  const char *buf, size_t size)
+{
+    struct emce_device *edev = dev_get_drvdata(dev);
+    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+    s16 new = 0;
+    u32 val;
+    if (kstrtos16(buf, 0, &new))
+        return -EINVAL;
+    if (new >> eflag->width)
+        return -EINVAL;
+    spin_lock(&edev->register_lock);
+    val = in_be32(edev->base_address + eflag->offset);
+    val &= ~eflag->mask;
+    val |= ((u16)new) << eflag->shift;
+    out_be32(edev->base_address + eflag->offset, val);
+    spin_unlock(&edev->register_lock);
+    return size;
+}
 ssize_t dummy_show(struct device *dev, struct device_attribute *attr,
                        char *buf)
 {
@@ -237,8 +268,8 @@ FPGA_FLAG(core, ov_fft, 0440, REG3_OFFSET, 26, 1);
 FPGA_FLAG(core, ov_ifft, 0440, REG3_OFFSET, 27, 1);
 FPGA_FLAG(core, circular, 0660, REG3_OFFSET, 28, 1);
 FPGA_FLAG(core, rst, 0220, REG3_OFFSET, 31, 1);
-FPGA_FLAG(tx, muli, 0660, REG4_OFFSET, 0, 16);
-FPGA_FLAG(tx, mulq, 0660, REG4_OFFSET, 16, 16);
+FPGA_FLAGC(tx, muli, 0660, REG4_OFFSET, 0, 16, 0, mul_show, mul_store);
+FPGA_FLAGC(tx, mulq, 0660, REG4_OFFSET, 16, 16, 0, mul_show, mul_store);
 FPGA_FLAG(tx, frame_offset, 0660, REG5_OFFSET, 0, 16);
 FPGA_FLAG(tx, deskew, 0220, REG5_OFFSET, 16, 1);
 FPGA_FLAG(tx, dc_balance, 0660, REG5_OFFSET, 17, 1);
