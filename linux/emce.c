@@ -133,7 +133,7 @@ static ssize_t scale_sch_store(struct device *dev,
     for(i=0; i<12; i++)
     {
         tmp = buf[11-i] - '0';
-        if (tmp > 1)
+        if (tmp > 1 || tmp < 0)
             return -EINVAL;
         valnew |= tmp << i;
     }
