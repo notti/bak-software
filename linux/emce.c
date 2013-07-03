@@ -553,7 +553,7 @@ static const struct file_operations emce_fops = {
 
 static struct class *emce_class;
 
-static int __devinit emce_of_probe(struct platform_device *ofdev)
+static int emce_of_probe(struct platform_device *ofdev)
 {
     struct resource r_mem;
     struct device *dev = &ofdev->dev;
@@ -643,8 +643,7 @@ static int __devinit emce_of_probe(struct platform_device *ofdev)
         }
     }
     
-    if(request_irq(edev->irq, edev_isr,
-            IRQF_SHARED | IRQF_SAMPLE_RANDOM, DRIVER_NAME, dev))
+    if(request_irq(edev->irq, edev_isr, IRQF_SHARED, DRIVER_NAME, dev))
     {
         dev_err(dev, "Couldn't request IRQ %d\n",edev->irq);
         rc = -EFAULT;
@@ -728,7 +727,7 @@ error1:
     return rc;
 }
 
-static int __devexit emce_of_remove(struct platform_device *of_dev)
+static int emce_of_remove(struct platform_device *of_dev)
 {
     struct device *dev = &of_dev->dev;
     struct emce_device *edev = dev_get_drvdata(dev);
@@ -766,7 +765,7 @@ static int __devexit emce_of_remove(struct platform_device *of_dev)
     return 0;
 }
 
-static const struct of_device_id emce_of_match[] __devinitdata = {
+static const struct of_device_id emce_of_match[] = {
     { .compatible = "xlnx,proc2fpga-3.00.b", },
     { /* end of list */ },
 };
@@ -780,7 +779,7 @@ static struct platform_driver emce_of_driver = {
         .of_match_table = emce_of_match,
     },
     .probe       = emce_of_probe,
-    .remove      = __devexit_p(emce_of_remove),
+    .remove      = emce_of_remove,
 };
 
 module_platform_driver(emce_of_driver);
