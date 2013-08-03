@@ -262,12 +262,14 @@ FPGA_FLAG(avg, rst, 0220, REG1_OFFSET, 31, 1);
 FPGA_FLAGC(core, scale_sch, 0660, 10, 0, 0, 0, scale_sch_show, scale_sch_store);
 FPGA_FLAGC(core, scale_schi, 0660, 8, 0, 0, 0, scale_sch_show, scale_sch_store);
 FPGA_FLAGM(core, L, 0660, REG3_OFFSET, 0, 12, 4096);
+FPGA_FLAG(core, scale_cmul, 0660, REG3_OFFSET, 14, 2);
 FPGA_FLAGC(core, n, 0660, REG3_OFFSET, 16, 5, 0, core_n_show, core_n_store);
 FPGA_FLAG(core, iq, 0660, REG3_OFFSET, 24, 1);
 FPGA_FLAG(core, start, 0660, REG3_OFFSET, 25, 1);
 FPGA_FLAG(core, ov_fft, 0440, REG3_OFFSET, 26, 1);
 FPGA_FLAG(core, ov_ifft, 0440, REG3_OFFSET, 27, 1);
-FPGA_FLAG(core, circular, 0660, REG3_OFFSET, 28, 1);
+FPGA_FLAG(core, ov_cmul, 0440, REG3_OFFSET, 28, 1);
+FPGA_FLAG(core, circular, 0660, REG3_OFFSET, 29, 1);
 FPGA_FLAG(core, rst, 0220, REG3_OFFSET, 31, 1);
 FPGA_FLAGC(tx, muli, 0660, REG4_OFFSET, 0, 16, 0, mul_show, mul_store);
 FPGA_FLAGC(tx, mulq, 0660, REG4_OFFSET, 16, 16, 0, mul_show, mul_store);
@@ -278,8 +280,9 @@ FPGA_FLAG(tx, toggle, 0660, REG5_OFFSET, 18, 1);
 FPGA_FLAG(tx, resync, 0220, REG5_OFFSET, 19, 1);
 FPGA_FLAG(tx, rst, 0220, REG5_OFFSET, 23, 1);
 FPGA_FLAG(mem, req, 0660, REG5_OFFSET, 24, 1);
-FPGA_FLAG(tx, ovfl, 0660, REG5_OFFSET, 30, 1);
-FPGA_FLAG(tx, shift, 0660, REG5_OFFSET, 31, 1);
+FPGA_FLAG(tx, sat, 0660, REG5_OFFSET, 28, 1);
+FPGA_FLAG(tx, ovfl, 0660, REG5_OFFSET, 29, 1);
+FPGA_FLAG(tx, shift, 0660, REG5_OFFSET, 30, 2);
 ATTR_INT(rec0_valid);
 ATTR_INT(rec0_invalid);
 ATTR_INT(rec1_valid);
@@ -336,12 +339,14 @@ static struct attribute *avg_attrs[] = {
 static struct attribute *core_attrs[] = {
     &dev_attr_core_scale_sch.attr.attr,
     &dev_attr_core_scale_schi.attr.attr,
+    &dev_attr_core_scale_cmul.attr.attr,
     &dev_attr_core_L.attr.attr,
     &dev_attr_core_n.attr.attr,
     &dev_attr_core_iq.attr.attr,
     &dev_attr_core_start.attr.attr,
     &dev_attr_core_ov_fft.attr.attr,
     &dev_attr_core_ov_ifft.attr.attr,
+    &dev_attr_core_ov_cmul.attr.attr,
     &dev_attr_core_circular.attr.attr,
     &dev_attr_core_rst.attr.attr,
     NULL
@@ -357,6 +362,7 @@ static struct attribute *tx_attrs[] = {
     &dev_attr_tx_resync.attr.attr,
     &dev_attr_tx_rst.attr.attr,
     &dev_attr_tx_ovfl.attr.attr,
+    &dev_attr_tx_sat.attr.attr,
     &dev_attr_tx_shift.attr.attr,
     NULL
 };
