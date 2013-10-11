@@ -7,4 +7,6 @@ else
     PWD:=$(shell pwd)
 default:
 	ARCH=powerpc CROSS_COMPILE=powerpc-linux- $(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
+install:
+	ARCH=powerpc CROSS_COMPILE=powerpc-linux- $(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules_install
 endif
