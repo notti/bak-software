@@ -86,9 +86,9 @@ class hardware:
               'gtx1/data_valid', 'gtx1/descramble', 'gtx1/enable', 'gtx1/polarity', 'gtx1/rxeqmix',
               'gtx2/data_valid', 'gtx2/descramble', 'gtx2/enable', 'gtx2/polarity', 'gtx2/rxeqmix',
               'average/active', 'average/err', 'average/width',
-              'core/L', 'core/circular', 'core/iq', 'core/n', 'core/ov_fft', 'core/ov_ifft', 'core/scale_sch', 'core/scale_schi', 'core/start',
+              'core/L', 'core/circular', 'core/iq', 'core/n', 'core/ov_fft', 'core/ov_ifft', 'core/ov_cmul', 'core/scale_sch', 'core/scale_schi', 'core/cmul', 'core/start',
               'receiver/input_select', 'receiver/stream_valid',
-              'transmitter/dc_balance', 'transmitter/frame_offset', 'transmitter/muli', 'transmitter/mulq', 'transmitter/toggle',
+              'transmitter/dc_balance', 'transmitter/frame_offset', 'transmitter/muli', 'transmitter/mulq', 'transmitter/toggle', 'transmitter/shift', 'transmitter/ovfl', 'transmitter/sat',
               'trigger/arm', 'trigger/type',
               'depth']
 
