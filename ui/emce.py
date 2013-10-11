@@ -1,6 +1,6 @@
-import struct
 import select
 import os
+import smmap
 
 base = '/sys/devices/plb.0/84000000.proc2fpga/'
 
@@ -11,26 +11,27 @@ class csvit:
             self.m = int(self.mem.hardware['core/n'])
         else:
             self.m = int(self.mem.hardware['depth'])
+        self.pos = 0
         if self.mem.mem == 'emce0':
-            self.unpacker = struct.Struct('h')
             self.next = self.readreal
         else:
-            self.unpacker = struct.Struct('hh')
             self.next = self.readcomplex
+            self.m *= 2
     def __iter__(self):
         return self
     def readcomplex(self):
-        self.m -= 1
-        if self.m < 0 :
+        if self.pos == self.m:
             raise StopIteration
-        im, re = self.unpacker.unpack(self.mem.f.read(4))
+        im, re = self.mem.data[self.pos:self.pos+2]
+        self.pos += 2
         return "%s, %s\n" % (re, im)
 
     def readreal(self):
-        self.m -= 1
-        if self.m < 0 :
+        if self.pos == self.m:
             raise StopIteration
-        return "%s\n" % self.unpacker.unpack(self.mem.f.read(2))
+        re = self.mem.data[self.pos]
+        self.pos += 1
+        return "%s\n" % re
 
 class memory:
     def __init__(self, hardware, mem, mode):
@@ -41,25 +42,38 @@ class memory:
         with open(base + 'req', 'r') as f:
             while not int(f.read()):
                 f.seek(0)
-        self.f = open('/dev/'+mem, mode + 'b')
+        if mode == 'r':
+            mode = 'r'
+            access = smmap.ACCESS_READ
+        else:
+            mode = 'r+'
+            access = smmap.ACCESS_WRITE
+        if mem == 'emce1':
+            length = 4096
+        else:
+            length = 49152
+        f = open('/dev/'+mem, mode)
+        self.data = smmap.mmap(f.fileno(), length, 'h', access)
+        f.close()
+        self.pos = 0
         if mem == 'emce0':
             self.write = self.writereal
-            self.packer = struct.Struct('h')
         else:
             self.write = self.writecomplex
-            self.packer = struct.Struct('hh')
 
     def writereal(self, real, imag):
-        self.f.write(self.packer.pack(real))
+        self.data[self.pos] = real
+        self.pos += 1
 
     def writecomplex(self, real, imag):
-        self.f.write(self.packer.pack(imag, real))
+        self.data[self.pos:self.pos+2] = real, imag
+        self.pos += 2
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.f.close()
+        self.data.close()
         with open(base + 'req', 'w') as f:
             f.write("0\n")
 
