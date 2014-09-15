@@ -1,12 +1,10 @@
-ARCH=powerpc
-CROSS_COMPILE=powerpc-linux-
-ifneq ($(KERNELRELEASE),)
-    obj-m := emce.o
-else
-    KDIR:=$(shell pwd)/../../linux/
-    PWD:=$(shell pwd)
-default:
-	ARCH=powerpc CROSS_COMPILE=powerpc-linux- $(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
-install:
-	ARCH=powerpc CROSS_COMPILE=powerpc-linux- $(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules_install
-endif
+obj-m := emce.o
+
+KVERSION ?= $(shell uname -r)
+KERNEL_SRC ?= /lib/modules/$(KVERSION)/build
+PWD := $(shell pwd)
+
+modules:
+	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) modules
+modules_install:
+	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) modules_install
