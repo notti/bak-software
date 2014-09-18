@@ -2,7 +2,7 @@ import select
 import os
 import smmap
 
-base = '/sys/devices/plb.0/84000000.proc2fpga/'
+base = '/sys/devices/plb@0/84000000.proc2fpga/'
 
 class csvit:
     def __init__(self, mem):
