@@ -165,6 +165,7 @@
                 <a class="btn btn-small" href="#" rel="tooltip" title="start" id="start"><i class="icon-play"></i></a>
                 <a class="btn btn-small btn-success disabled" status=0 href="#" id="ov_fft" rel="tooltip" title="fft overflow"><i class="icon-ok"></i></a>
                 <a class="btn btn-small btn-success disabled" status=0 href="#" id="ov_ifft" rel="tooltip" title="ifft overflow"><i class="icon-ok"></i></a>
+                <a class="btn btn-small btn-success disabled" status=0 href="#" id="ov_cmul" rel="tooltip" title="cmul overflow"><i class="icon-ok"></i></a>
             </div>
             <form class="form-horizontal">
                 <div class="control-group">
@@ -175,14 +176,41 @@
                 </div>
                 <div class="control-group">
                     <label class="control-label" for="scale_sch">scale_sch</label>
-                    <div class="controls">
-                        <input type="text" class="span2" id="scale_sch" maxlength="12" scale_sch="1">
+                    <div class="controls sch">
+                        <input type="text" id="scale_sch5" size="1" maxlength="1" min="0" max="1">
+                        <input type="text" id="scale_sch4" size="1" maxlength="1" min="0" max="3">
+                        <input type="text" id="scale_sch3" size="1" maxlength="1" min="0" max="3">
+                        <input type="text" id="scale_sch2" size="1" maxlength="1" min="0" max="3">
+                        <input type="text" id="scale_sch1" size="1" maxlength="1" min="0" max="3">
+                        <input type="text" id="scale_sch0" size="1" maxlength="1" min="0" max="3">
                     </div>
                 </div>
                 <div class="control-group">
                     <label class="control-label" for="scale_schi">scale_schi</label>
+                    <div class="controls sch">
+                        <input type="text" id="scale_schi5" size="1" maxlength="1" min="0" max="1">
+                        <input type="text" id="scale_schi4" size="1" maxlength="1" min="0" max="3">
+                        <input type="text" id="scale_schi3" size="1" maxlength="1" min="0" max="3">
+                        <input type="text" id="scale_schi2" size="1" maxlength="1" min="0" max="3">
+                        <input type="text" id="scale_schi1" size="1" maxlength="1" min="0" max="3">
+                        <input type="text" id="scale_schi0" size="1" maxlength="1" min="0" max="3">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="scale_cmul">scale_cmul</label>
                     <div class="controls">
-                        <input type="text" class="span2" id="scale_schi" maxlength="12" scale_sch="1">
+	                <div class="btn-group" id="scale_cmul">
+                            <a class="btn btn-small dropdown-toggle" data-toggle="dropdown" href="#" rel="tooltip" title="scale_cmul">
+                                <span class="value">16</span>
+                                <span class="caret"></span>
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a tabindex="-1" href="#" id="0">16</a></li>
+                                <li><a tabindex="-1" href="#" id="1">15</a></li>
+                                <li><a tabindex="-1" href="#" id="2">14</a></li>
+                                <li><a tabindex="-1" href="#" id="3">13</a></li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </form>
@@ -194,8 +222,12 @@
             <div class="btn-toolbar">
                 <a class="btn btn-small" href="#" rel="tooltip" title="deskew" id="deskew"><i class="icon-align-left"></i></a>
                 <a class="btn btn-small toggle active" href="#" rel="tooltip" title="dc balance" id="dc_balance"><i class="icon-adjust"></i></a>
-                <a class="btn btn-small" href="#" rel="tooltip" title="toggle" id="toggle"><i class="icon-retweet"></i></a>
                 <a class="btn btn-small" href="#" rel="tooltip" title="resync" id="resync"><i class="icon-resize-horizontal"></i></a>
+            </div>
+            <div class="btn-toolbar">
+                <a class="btn btn-small" href="#" rel="tooltip" title="toggle" id="toggle"><i class="icon-retweet"></i></a>
+                <a class="btn btn-small toggle active" href="#" id="sat" rel="tooltip" title="saturation"><i class="icon-random"></i></a>
+                <a class="btn btn-small btn-success disabled" status=0 href="#" id="ovfl" rel="tooltip" title="mul overflow"><i class="icon-ok"></i></a>
             </div>
             <form class="form-horizontal">
                 <div class="control-group">
@@ -208,6 +240,23 @@
                     <label class="control-label" for="mulq">mulq</label>
                     <div class="controls">
                         <input type="text" class="span1" id="mulq" maxlength="6" min="-32768" max="32767">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="shift">shift</label>
+                    <div class="controls">
+	                <div class="btn-group" id="shift">
+                            <a class="btn btn-small dropdown-toggle" data-toggle="dropdown" href="#" rel="tooltip" title="shift">
+                                <span class="value">16</span>
+                                <span class="caret"></span>
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a tabindex="-1" href="#" id="0">16</a></li>
+                                <li><a tabindex="-1" href="#" id="1">15</a></li>
+                                <li><a tabindex="-1" href="#" id="2">14</a></li>
+                                <li><a tabindex="-1" href="#" id="3">13</a></li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
                 <div class="control-group">

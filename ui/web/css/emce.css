@@ -76,4 +76,6 @@ form {
     color: #eee;
     font-family: Courier New, monospace;
 }
-
+.sch input {
+    width: 1em;
+}

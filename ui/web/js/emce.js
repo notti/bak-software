@@ -19,8 +19,9 @@
                         case 'rec1_invalid': case 'rec1_valid': query('gtx1/data_valid'); break;
                         case 'rec2_invalid': case 'rec2_valid': query('gtx2/data_valid'); break;
                         case 'stream_invalid': case 'stream_valid': query('receiver/stream_valid'); break;
-                        case 'core_done': query('core/ov_ifft'); query('core/ov_fft'); break;
+                        case 'core_done': query('core/ov_ifft'); query('core/ov_fft'); query('core/ov_cmul'); break;
                         case 'trigd': query('trigger/arm'); break;
+                        case 'tx_ovfl': query('transmitter/ovfl'); break;
                     }
                     break;
             }
@@ -74,8 +75,6 @@
             var ok = true;
             if (!isFinite(value) || value == '') {
                 ok = false;
-            } else if (element.attr('scale_sch')) {
-                ok = /^[01]+$/.test(value);
             } else {
                 var value = parseInt(value);
                 var min = parseInt(element.attr('min'));
@@ -129,6 +128,15 @@
                             case '1': value = '01'; break;
                             case '2': value = '10'; break;
                             case '3': value = '11'; break;
+                        }
+                        break;
+                    case 'shift':
+                    case 'scale_cmul':
+                        switch(value) {
+                            case '0': value = '16'; break;
+                            case '1': value = '15'; break;
+                            case '2': value = '14'; break;
+                            case '3': value = '13'; break;
                         }
                         break;
                 }
@@ -211,6 +219,10 @@
             sendValue(attribute, value);
             setValue(attribute, value);
             e.preventDefault();
+        });
+        $('.btn#ovfl').click(function(e) {
+            setValue('transmitter/ovfl', '0');
+            sendValue('transmitter/ovfl', '0');
         });
         $('.dropdown-menu a').click(function(e) {
             var element = $(this);
