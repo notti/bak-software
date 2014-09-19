@@ -1,7 +1,7 @@
 #!/usr/bin/python
 from twisted.application import internet, service
 from twisted.web import static, server, resource
-from twisted.internet import protocol, threads, reactor
+from twisted.internet import protocol, threads, reactor, defer
 from txws import WebSocketFactory
 import emce
 import json
@@ -76,11 +76,40 @@ class Data(resource.Resource):
         threads.deferToThread(putfile, request).addCallback(done).addErrback(fail)
         return server.NOT_DONE_YET
 
+class PseudoClient:
+    def __init__(self, which, deferred):
+        self.deferred = deferred
+        self.which = which
+    def send(self, cmd, target):
+        if cmd == 'int' and target == self.which:
+            self.deferred.callback(target)
+
+class Ctrl(resource.Resource):
+    isLeaf = True
+    def render_GET(self, request):
+        if not len(request.postpath) or request.postpath[0] != 'capture':
+            request.setResponseCode(404)
+            return 'Not Found'
+
+        def done(x):
+            proto.clients.remove(pseudo)
+            request.write('OK')
+            request.finish()
+        d = defer.Deferred()
+        d.addCallback(done)
+        pseudo = PseudoClient('avg_done', d)
+        proto.clients.add(pseudo)
+        hardware['trigger/arm'] = '1'
+        return server.NOT_DONE_YET
+
 class Stuff(static.File):
     _data_out = Data()
+    _ctrl = Ctrl()
     def getChild(self, path, request):
         if path == 'data':
             return self._data_out
+        elif path == 'ctrl':
+            return self._ctrl
         else:
             return static.File.getChild(self, path, request)
 
@@ -93,7 +122,7 @@ proto = MyFactory()
 def intr(which):
     threads.deferToThread(hardware.check).addCallback(intr)
     for target in which:
-        for client in proto.clients:
+        for client in list(proto.clients):
             client.send(cmd='int', target=target)
 intr(())
 w = internet.TCPServer(8080, WebSocketFactory(proto))
