@@ -789,12 +789,12 @@ MODULE_DEVICE_TABLE(of, emce_of_match);
 
 static struct platform_driver emce_of_driver = {
 	.driver = {
-		.name        = DRIVER_NAME,
-		.owner       = THIS_MODULE,
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
 		.of_match_table = emce_of_match,
 	},
-	.probe       = emce_of_probe,
-	.remove      = emce_of_remove,
+	.probe = emce_of_probe,
+	.remove = emce_of_remove,
 };
 
 module_platform_driver(emce_of_driver);
