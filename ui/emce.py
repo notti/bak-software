@@ -49,9 +49,9 @@ class memory:
             mode = 'r+'
             access = smmap.ACCESS_WRITE
         if mem == 'emce1':
-            length = 4096
+            length = 4096*2
         else:
-            length = 49152
+            length = 49152*2
         f = open('/dev/'+mem, mode)
         self.data = smmap.mmap(f.fileno(), length, 'h', access)
         f.close()
