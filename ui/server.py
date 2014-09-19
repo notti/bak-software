@@ -42,8 +42,7 @@ class Data(resource.Resource):
     def render_GET(self, request):
         def putfile(request):
             with hardware(request.postpath[0], 'r') as f:
-                for line in f:
-                    reactor.callFromThread(request.write, line)
+                reactor.callFromThread(request.write, ''.join(f))
         def done(x):
             request.finish()
         if not len(request.postpath) or request.postpath[0] not in ('emce0', 'emce1', 'emce2', 'emce3'):
