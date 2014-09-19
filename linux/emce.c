@@ -1,5 +1,3 @@
-#define DEBUG
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -44,194 +42,196 @@
 
 struct user_mem
 {
-    unsigned long start;
-    unsigned long size;
-    void __iomem *base_address;
+	unsigned long start;
+	unsigned long size;
+	void __iomem *base_address;
 };
 
 struct emce_device
 {
-    struct cdev cdev;
-    dev_t dev;
-    unsigned long reg_start;
-    unsigned long reg_size;
-    void __iomem *base_address;
-    spinlock_t register_lock;
-    struct user_mem mem[USER_MEM];
-    unsigned int irq;
+	struct cdev cdev;
+	dev_t dev;
+	unsigned long reg_start;
+	unsigned long reg_size;
+	void __iomem *base_address;
+	spinlock_t register_lock;
+	struct user_mem mem[USER_MEM];
+	unsigned int irq;
 };
 
 struct fpga_flag_attribute {
-    struct device_attribute attr;
-    unsigned long offset;
-    u32 mask;
-    u32 shift;
-    u32 width;
-    u32 max;
+	struct device_attribute attr;
+	unsigned long offset;
+	u32 mask;
+	u32 shift;
+	u32 width;
+	u32 max;
 };
 
 #define to_fpga_flag(x) container_of(x, struct fpga_flag_attribute, attr)
 
 ssize_t fpga_flag_show(struct device *dev, struct device_attribute *attr,
-                       char *buf)
+		char *buf)
 {
-    struct emce_device *edev = dev_get_drvdata(dev);
-    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
-    u32 value = in_be32(edev->base_address + eflag->offset);
+	struct emce_device *edev = dev_get_drvdata(dev);
+	struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+	u32 value = in_be32(edev->base_address + eflag->offset);
 
-    value &= eflag->mask;
-    value >>= eflag->shift;
+	value &= eflag->mask;
+	value >>= eflag->shift;
 
-    return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)value);
+	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)value);
 }
 
 ssize_t fpga_flag_store(struct device *dev, struct device_attribute *attr,
-                        const char *buf, size_t size)
+		const char *buf, size_t size)
 {
-    struct emce_device *edev = dev_get_drvdata(dev);
-    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
-    u32 new = 0;
-    u32 val;
-    if (kstrtou32(buf, 0, &new))
-        return -EINVAL;
-    if (eflag->max && new > eflag->max)
-        return -EINVAL;
-    if (new >> eflag->width)
-        return -EINVAL;
-    spin_lock(&edev->register_lock);
-    val = in_be32(edev->base_address + eflag->offset);
-    val &= ~eflag->mask;
-    val |= new << eflag->shift;
-    out_be32(edev->base_address + eflag->offset, val);
-    spin_unlock(&edev->register_lock);
-    /* Always return full write size even if we didn't consume all */
-    return size;
+	struct emce_device *edev = dev_get_drvdata(dev);
+	struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+	u32 new = 0;
+	u32 val;
+	if (kstrtou32(buf, 0, &new))
+		return -EINVAL;
+	if (eflag->max && new > eflag->max)
+		return -EINVAL;
+	if (new >> eflag->width)
+		return -EINVAL;
+	spin_lock(&edev->register_lock);
+	val = in_be32(edev->base_address + eflag->offset);
+	val &= ~eflag->mask;
+	val |= new << eflag->shift;
+	out_be32(edev->base_address + eflag->offset, val);
+	spin_unlock(&edev->register_lock);
+	/* Always return full write size even if we didn't consume all */
+	return size;
 }
 
 static ssize_t scale_sch_show(struct device *dev,
-        struct device_attribute *attr, char *buf) 
+		struct device_attribute *attr, char *buf)
 {
-    struct emce_device *edev = dev_get_drvdata(dev); 
-    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
-    u16 val = in_be16(edev->base_address + eflag->offset);
-    int i;
-    for(i=0; i<12; i++)
-        buf[11-i] = '0' + (char)((val >> i) & 1);
-    buf[12] = '\n';
-    buf[13] = 0;
-    return 13;
+	struct emce_device *edev = dev_get_drvdata(dev);
+	struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+	u16 val = in_be16(edev->base_address + eflag->offset);
+	int i;
+	for(i=0; i<12; i++)
+		buf[11-i] = '0' + (char)((val >> i) & 1);
+	buf[12] = '\n';
+	buf[13] = 0;
+	return 13;
 }
 
 static ssize_t scale_sch_store(struct device *dev,
-        struct device_attribute *attr, const char *buf, size_t count)
+		struct device_attribute *attr, const char *buf, size_t count)
 {
-    struct emce_device *edev = dev_get_drvdata(dev);
-    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
-    u16 valnew = 0;
-    int i;
-    char tmp;
-    if (count < 12)
-        return -EINVAL;
-    for(i=0; i<12; i++)
-    {
-        tmp = buf[11-i] - '0';
-        if (tmp > 1 || tmp < 0)
-            return -EINVAL;
-        valnew |= tmp << i;
-    }
-    out_be16(edev->base_address + eflag->offset,valnew);
+	struct emce_device *edev = dev_get_drvdata(dev);
+	struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+	u16 valnew = 0;
+	int i;
+	char tmp;
+	if (count < 12)
+		return -EINVAL;
+	for(i=0; i<12; i++)
+	{
+		tmp = buf[11-i] - '0';
+		if (tmp > 1 || tmp < 0)
+			return -EINVAL;
+		valnew |= tmp << i;
+	}
+	out_be16(edev->base_address + eflag->offset,valnew);
 
-    return count;
+	return count;
 }
 
 ssize_t core_n_show(struct device *dev, struct device_attribute *attr,
-                       char *buf)
+		char *buf)
 {
-    struct emce_device *edev = dev_get_drvdata(dev);
-    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
-    u32 value = in_be32(edev->base_address + eflag->offset);
+	struct emce_device *edev = dev_get_drvdata(dev);
+	struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+	u32 value = in_be32(edev->base_address + eflag->offset);
 
-    value &= eflag->mask;
-    value >>= eflag->shift;
+	value &= eflag->mask;
+	value >>= eflag->shift;
 
-    value = 1 << value;
+	value = 1 << value;
 
-    return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)value);
+	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)value);
 }
 
 ssize_t core_n_store(struct device *dev, struct device_attribute *attr,
-                        const char *buf, size_t size)
+		const char *buf, size_t size)
 {
-    struct emce_device *edev = dev_get_drvdata(dev);
-    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
-    u32 new = 0;
-    u32 val;
-    if (kstrtou32(buf, 0, &new))
-        return -EINVAL;
-    if (!(new & 0x1FF8))
-        return -EINVAL;
-    val = ffs(new);
-    if (new >> val)
-        return -EINVAL;
-    new = val - 1;
-    spin_lock(&edev->register_lock);
-    val = in_be32(edev->base_address + eflag->offset);
-    val &= ~eflag->mask;
-    val |= new << eflag->shift;
-    out_be32(edev->base_address + eflag->offset, val);
-    spin_unlock(&edev->register_lock);
-    return size;
+	struct emce_device *edev = dev_get_drvdata(dev);
+	struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+	u32 new = 0;
+	u32 val;
+	if (kstrtou32(buf, 0, &new))
+		return -EINVAL;
+	if (!(new & 0x1FF8))
+		return -EINVAL;
+	val = ffs(new);
+	if (new >> val)
+		return -EINVAL;
+	new = val - 1;
+	spin_lock(&edev->register_lock);
+	val = in_be32(edev->base_address + eflag->offset);
+	val &= ~eflag->mask;
+	val |= new << eflag->shift;
+	out_be32(edev->base_address + eflag->offset, val);
+	spin_unlock(&edev->register_lock);
+	return size;
 }
 
 ssize_t mul_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    struct emce_device *edev = dev_get_drvdata(dev);
-    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
-    u32 value = in_be32(edev->base_address + eflag->offset);
+	struct emce_device *edev = dev_get_drvdata(dev);
+	struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+	u32 value = in_be32(edev->base_address + eflag->offset);
 
-    value >>= eflag->shift;
-    value &= 0xFFFF;
+	value >>= eflag->shift;
+	value &= 0xFFFF;
 
-    return snprintf(buf, PAGE_SIZE, "%d\n", (s16)value);
+	return snprintf(buf, PAGE_SIZE, "%d\n", (s16)value);
 }
 
 ssize_t mul_store(struct device *dev, struct device_attribute *attr,
-                  const char *buf, size_t size)
+		const char *buf, size_t size)
 {
-    struct emce_device *edev = dev_get_drvdata(dev);
-    struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
-    s16 new = 0;
-    u32 val;
-    if (kstrtos16(buf, 0, &new))
-        return -EINVAL;
-    if (((u16)new) >> eflag->width)
-        return -EINVAL;
-    spin_lock(&edev->register_lock);
-    val = in_be32(edev->base_address + eflag->offset);
-    val &= ~eflag->mask;
-    val |= ((u16)new) << eflag->shift;
-    out_be32(edev->base_address + eflag->offset, val);
-    spin_unlock(&edev->register_lock);
-    return size;
+	struct emce_device *edev = dev_get_drvdata(dev);
+	struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
+	s16 new = 0;
+	u32 val;
+	if (kstrtos16(buf, 0, &new))
+		return -EINVAL;
+	if (((u16)new) >> eflag->width)
+		return -EINVAL;
+	spin_lock(&edev->register_lock);
+	val = in_be32(edev->base_address + eflag->offset);
+	val &= ~eflag->mask;
+	val |= ((u16)new) << eflag->shift;
+	out_be32(edev->base_address + eflag->offset, val);
+	spin_unlock(&edev->register_lock);
+	return size;
 }
+
 ssize_t dummy_show(struct device *dev, struct device_attribute *attr,
-                       char *buf)
+		char *buf)
 {
-    return snprintf(buf, PAGE_SIZE, "\n");
+	return snprintf(buf, PAGE_SIZE, "\n");
 }
 
-
-
-#define FPGA_FLAGC(_base, _name, _mode, _offset, _bit, _width, _max, _show, _store) \
-        struct fpga_flag_attribute dev_attr_##_base##_##_name = \
-                { __ATTR(_name, _mode, _show, _store),\
-                    _offset, ((1<<(_width))-1)<<_bit, _bit, _width, _max }
+#define FPGA_FLAGC(_base, _name, _mode, _offset, _bit, _width, _max, _show, \
+		_store) \
+	struct fpga_flag_attribute dev_attr_##_base##_##_name = \
+		{ __ATTR(_name, _mode, _show, _store),\
+		_offset, ((1<<(_width))-1)<<_bit, _bit, _width, _max }
 #define FPGA_FLAG(_base, _name, _mode, _offset, _bit, _width) \
-    FPGA_FLAGC(_base, _name, _mode, _offset, _bit, _width, 0, fpga_flag_show, fpga_flag_store)
+	FPGA_FLAGC(_base, _name, _mode, _offset, _bit, _width, 0, \
+			fpga_flag_show, fpga_flag_store)
 #define FPGA_FLAGM(_base, _name, _mode, _offset, _bit, _width, _max) \
-    FPGA_FLAGC(_base, _name, _mode, _offset, _bit, _width, _max, fpga_flag_show, fpga_flag_store)
+	FPGA_FLAGC(_base, _name, _mode, _offset, _bit, _width, _max, \
+			fpga_flag_show, fpga_flag_store)
 #define ATTR_INT(name) struct device_attribute dev_attr_int_##name = \
-        __ATTR(name, 0440, dummy_show, NULL)
+	__ATTR(name, 0440, dummy_show, NULL)
 
 FPGA_FLAG(rec0, enable, 0660, REG0_OFFSET, 0, 1);
 FPGA_FLAG(rec0, polarity, 0660, REG0_OFFSET, 1, 1);
@@ -301,230 +301,230 @@ ATTR_INT(tx_toggled);
 ATTR_INT(tx_ovfl);
 
 #define RECEIVER_ATTRS(_num) \
-static struct attribute *receiver_attrs_##_num[] = { \
-    &dev_attr_rec##_num##_enable.attr.attr, \
-    &dev_attr_rec##_num##_polarity.attr.attr,\
-    &dev_attr_rec##_num##_descramble.attr.attr,\
-    &dev_attr_rec##_num##_rxeqmix.attr.attr,\
-    &dev_attr_rec##_num##_data_valid.attr.attr,\
-    NULL,\
-};
+	static struct attribute *receiver_attrs_##_num[] = { \
+		&dev_attr_rec##_num##_enable.attr.attr, \
+		&dev_attr_rec##_num##_polarity.attr.attr,\
+		&dev_attr_rec##_num##_descramble.attr.attr,\
+		&dev_attr_rec##_num##_rxeqmix.attr.attr,\
+		&dev_attr_rec##_num##_data_valid.attr.attr,\
+		NULL,\
+	};
 
 RECEIVER_ATTRS(0)
 RECEIVER_ATTRS(1)
 RECEIVER_ATTRS(2)
 
 static struct attribute *rec_attrs[] = {
-    &dev_attr_rec_input_select.attr.attr,
-    &dev_attr_rec_stream_valid.attr.attr,
-    &dev_attr_rec_rst.attr.attr,
-    NULL
+	&dev_attr_rec_input_select.attr.attr,
+	&dev_attr_rec_stream_valid.attr.attr,
+	&dev_attr_rec_rst.attr.attr,
+	NULL
 };
 
 static struct attribute *trig_attrs[] = {
-    &dev_attr_trig_type.attr.attr,
-    &dev_attr_trig_arm.attr.attr,
-    &dev_attr_trig_int.attr.attr,
-    &dev_attr_trig_rst.attr.attr,
-    NULL
+	&dev_attr_trig_type.attr.attr,
+	&dev_attr_trig_arm.attr.attr,
+	&dev_attr_trig_int.attr.attr,
+	&dev_attr_trig_rst.attr.attr,
+	NULL
 };
 
 static struct attribute *avg_attrs[] = {
-    &dev_attr_avg_width.attr.attr,
-    &dev_attr_avg_active.attr.attr,
-    &dev_attr_avg_err.attr.attr,
-    &dev_attr_avg_rst.attr.attr,
-    NULL
+	&dev_attr_avg_width.attr.attr,
+	&dev_attr_avg_active.attr.attr,
+	&dev_attr_avg_err.attr.attr,
+	&dev_attr_avg_rst.attr.attr,
+	NULL
 };
 
 static struct attribute *core_attrs[] = {
-    &dev_attr_core_scale_sch.attr.attr,
-    &dev_attr_core_scale_schi.attr.attr,
-    &dev_attr_core_scale_cmul.attr.attr,
-    &dev_attr_core_L.attr.attr,
-    &dev_attr_core_n.attr.attr,
-    &dev_attr_core_iq.attr.attr,
-    &dev_attr_core_start.attr.attr,
-    &dev_attr_core_ov_fft.attr.attr,
-    &dev_attr_core_ov_ifft.attr.attr,
-    &dev_attr_core_ov_cmul.attr.attr,
-    &dev_attr_core_circular.attr.attr,
-    &dev_attr_core_rst.attr.attr,
-    NULL
+	&dev_attr_core_scale_sch.attr.attr,
+	&dev_attr_core_scale_schi.attr.attr,
+	&dev_attr_core_scale_cmul.attr.attr,
+	&dev_attr_core_L.attr.attr,
+	&dev_attr_core_n.attr.attr,
+	&dev_attr_core_iq.attr.attr,
+	&dev_attr_core_start.attr.attr,
+	&dev_attr_core_ov_fft.attr.attr,
+	&dev_attr_core_ov_ifft.attr.attr,
+	&dev_attr_core_ov_cmul.attr.attr,
+	&dev_attr_core_circular.attr.attr,
+	&dev_attr_core_rst.attr.attr,
+	NULL
 };
 
 static struct attribute *tx_attrs[] = {
-    &dev_attr_tx_muli.attr.attr,
-    &dev_attr_tx_mulq.attr.attr,
-    &dev_attr_tx_frame_offset.attr.attr,
-    &dev_attr_tx_deskew.attr.attr,
-    &dev_attr_tx_dc_balance.attr.attr,
-    &dev_attr_tx_toggle.attr.attr,
-    &dev_attr_tx_resync.attr.attr,
-    &dev_attr_tx_rst.attr.attr,
-    &dev_attr_tx_ovfl.attr.attr,
-    &dev_attr_tx_sat.attr.attr,
-    &dev_attr_tx_shift.attr.attr,
-    NULL
+	&dev_attr_tx_muli.attr.attr,
+	&dev_attr_tx_mulq.attr.attr,
+	&dev_attr_tx_frame_offset.attr.attr,
+	&dev_attr_tx_deskew.attr.attr,
+	&dev_attr_tx_dc_balance.attr.attr,
+	&dev_attr_tx_toggle.attr.attr,
+	&dev_attr_tx_resync.attr.attr,
+	&dev_attr_tx_rst.attr.attr,
+	&dev_attr_tx_ovfl.attr.attr,
+	&dev_attr_tx_sat.attr.attr,
+	&dev_attr_tx_shift.attr.attr,
+	NULL
 };
 
 static struct attribute *int_attrs[] = {
-    &dev_attr_int_rec0_valid.attr,
-    &dev_attr_int_rec0_invalid.attr,
-    &dev_attr_int_rec1_valid.attr,
-    &dev_attr_int_rec1_invalid.attr,
-    &dev_attr_int_rec2_valid.attr,
-    &dev_attr_int_rec2_invalid.attr,
-    &dev_attr_int_stream_valid.attr,
-    &dev_attr_int_stream_invalid.attr,
-    &dev_attr_int_trigd.attr,
-    &dev_attr_int_avg_done.attr,
-    &dev_attr_int_core_done.attr,
-    &dev_attr_int_tx_toggled.attr,
-    &dev_attr_int_tx_ovfl.attr,
-    NULL
+	&dev_attr_int_rec0_valid.attr,
+	&dev_attr_int_rec0_invalid.attr,
+	&dev_attr_int_rec1_valid.attr,
+	&dev_attr_int_rec1_invalid.attr,
+	&dev_attr_int_rec2_valid.attr,
+	&dev_attr_int_rec2_invalid.attr,
+	&dev_attr_int_stream_valid.attr,
+	&dev_attr_int_stream_invalid.attr,
+	&dev_attr_int_trigd.attr,
+	&dev_attr_int_avg_done.attr,
+	&dev_attr_int_core_done.attr,
+	&dev_attr_int_tx_toggled.attr,
+	&dev_attr_int_tx_ovfl.attr,
+	NULL
 };
 
 static struct attribute *system_attrs[] = {
-    &dev_attr___depth.attr.attr,
-    &dev_attr_mem_req.attr.attr,
-    NULL
+	&dev_attr___depth.attr.attr,
+	&dev_attr_mem_req.attr.attr,
+	NULL
 };
 
 static struct attribute_group groups[] = {
-    {
-        .name = NULL,
-        .attrs = system_attrs,
-    },
-    {
-        .name = "gtx0",
-        .attrs = receiver_attrs_0,
-    },
-    {
-        .name = "gtx1",
-        .attrs = receiver_attrs_1,
-    },
-    {
-        .name = "gtx2",
-        .attrs = receiver_attrs_2,
-    },
-    {
-        .name = "receiver",
-        .attrs = rec_attrs,
-    },
-    {
-        .name = "trigger",
-        .attrs = trig_attrs,
-    },
-    {
-        .name = "average",
-        .attrs = avg_attrs,
-    },
-    {
-        .name = "core",
-        .attrs = core_attrs,
-    },
-    {
-        .name = "transmitter",
-        .attrs = tx_attrs,
-    },
-    {
-        .name = "int",
-        .attrs = int_attrs,
-    },
-    {
-        .attrs = NULL,
-    },
+	{
+		.name = NULL,
+		.attrs = system_attrs,
+	},
+	{
+		.name = "gtx0",
+		.attrs = receiver_attrs_0,
+	},
+	{
+		.name = "gtx1",
+		.attrs = receiver_attrs_1,
+	},
+	{
+		.name = "gtx2",
+		.attrs = receiver_attrs_2,
+	},
+	{
+		.name = "receiver",
+		.attrs = rec_attrs,
+	},
+	{
+		.name = "trigger",
+		.attrs = trig_attrs,
+	},
+	{
+		.name = "average",
+		.attrs = avg_attrs,
+	},
+	{
+		.name = "core",
+		.attrs = core_attrs,
+	},
+	{
+		.name = "transmitter",
+		.attrs = tx_attrs,
+	},
+	{
+		.name = "int",
+		.attrs = int_attrs,
+	},
+	{
+		.attrs = NULL,
+	},
 };
 
 static irqreturn_t edev_isr(int irq, void *dev_id)
 {
-    struct device *dev=(struct device*)dev_id;
-    struct emce_device *edev = dev_get_drvdata(dev_id);
+	struct device *dev=(struct device*)dev_id;
+	struct emce_device *edev = dev_get_drvdata(dev_id);
 
-    u32 status;
-    int i;
+	u32 status;
+	int i;
 
-    status = in_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET);
-    out_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET, status);
+	status = in_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET);
+	out_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET, status);
 
-    for(i=0; int_attrs[i]; i++)
-        if((status >> (15 - i)) & 1)
-        {
-            sysfs_notify(&dev->kobj, "int", int_attrs[i]->name);
-            dev_dbg(dev,"got intr %s\n", int_attrs[i]->name);
-        }
+	for(i=0; int_attrs[i]; i++)
+		if((status >> (15 - i)) & 1)
+		{
+			sysfs_notify(&dev->kobj, "int", int_attrs[i]->name);
+			dev_dbg(dev,"got intr %s\n", int_attrs[i]->name);
+		}
 
-    return IRQ_HANDLED;
+	return IRQ_HANDLED;
 }
 
 ssize_t mem_read (struct file *file, char __user *buf,
-        size_t count, loff_t *ppos)
+		size_t count, loff_t *ppos)
 {
-    struct user_mem *mem = file->private_data;
+	struct user_mem *mem = file->private_data;
 
-    if(*ppos >= mem->size)
-        return 0; //EOF
+	if(*ppos >= mem->size)
+		return 0; //EOF
 
-    if(*ppos + count >= mem->size)
-        count = mem->size - *ppos;
+	if(*ppos + count >= mem->size)
+		count = mem->size - *ppos;
 
-    if(copy_to_user(buf, mem->base_address+*ppos, count))
-        return -EFAULT;
+	if(copy_to_user(buf, mem->base_address+*ppos, count))
+		return -EFAULT;
 
-    *ppos+=count;
-    return count;
+	*ppos+=count;
+	return count;
 }
 
 ssize_t mem_write(struct file *file, const char __user *buf,
-        size_t count, loff_t *ppos)
+		size_t count, loff_t *ppos)
 {
-    struct user_mem *mem = file->private_data;
+	struct user_mem *mem = file->private_data;
 
-    if(*ppos >= mem->size)
-        return -EFBIG;
+	if(*ppos >= mem->size)
+		return -EFBIG;
 
-    if(*ppos + count >= mem->size)
-        count = mem->size - *ppos;
+	if(*ppos + count >= mem->size)
+		count = mem->size - *ppos;
 
-    if(copy_from_user(mem->base_address+*ppos, buf, count))
-        return -EFAULT;
+	if(copy_from_user(mem->base_address+*ppos, buf, count))
+		return -EFAULT;
 
-    *ppos+=count;
-    return count;
+	*ppos+=count;
+	return count;
 }
 
 static int mem_open(struct inode *inode, struct file *file)
 {
-    struct emce_device *edev;
+	struct emce_device *edev;
 
-    if(MINOR(inode->i_rdev)>=USER_MEM)
-        return -ENODEV;
+	if(MINOR(inode->i_rdev)>=USER_MEM)
+		return -ENODEV;
 
-    edev = container_of(inode->i_cdev, struct emce_device, cdev);
-    file->private_data = &edev->mem[MINOR(inode->i_rdev)];
-    return 0;
+	edev = container_of(inode->i_cdev, struct emce_device, cdev);
+	file->private_data = &edev->mem[MINOR(inode->i_rdev)];
+	return 0;
 }
 
 static loff_t mem_lseek(struct file *file, loff_t offset, int orig)
 {
-    struct user_mem *mem = file->private_data;
+	struct user_mem *mem = file->private_data;
 
-    loff_t ret;
+	loff_t ret;
 
-    switch(orig)
-    {
-        case 0: ret = offset; break;
-        case 1: ret = file->f_pos + offset; break;
-        case 2: ret = mem->size - offset; break;
-        default: return -EINVAL;
-    }
-    if(ret>mem->size)
-        return -EINVAL;
-    if(ret<0)
-        return -EINVAL;
-    file->f_pos = ret;
-    return ret;
+	switch(orig)
+	{
+	case 0: ret = offset; break;
+	case 1: ret = file->f_pos + offset; break;
+	case 2: ret = mem->size - offset; break;
+	default: return -EINVAL;
+	}
+	if(ret>mem->size)
+		return -EINVAL;
+	if(ret<0)
+		return -EINVAL;
+	file->f_pos = ret;
+	return ret;
 }
 
 static struct vm_operations_struct mem_mmap_ops = {
@@ -532,262 +532,269 @@ static struct vm_operations_struct mem_mmap_ops = {
 
 static int mem_mmap(struct file *file, struct vm_area_struct *vma)
 {
-    struct user_mem *mem = file->private_data;
-    unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
-    unsigned long vsize = vma->vm_end - vma->vm_start;
-    unsigned long psize = mem->size - off;
+	struct user_mem *mem = file->private_data;
+	unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
+	unsigned long vsize = vma->vm_end - vma->vm_start;
+	unsigned long psize = mem->size - off;
 
-    if (vsize > psize)
-        return -EINVAL;
+	if (vsize > psize)
+		return -EINVAL;
 
-    if (io_remap_pfn_range(vma, vma->vm_start,
-                mem->start >> PAGE_SHIFT,
-                vsize,
-                vma->vm_page_prot))
-        return -EAGAIN;
+	if (io_remap_pfn_range(vma, vma->vm_start,
+				mem->start >> PAGE_SHIFT,
+				vsize,
+				vma->vm_page_prot))
+		return -EAGAIN;
 
-    vma->vm_ops = &mem_mmap_ops;
-    return 0;
+	vma->vm_ops = &mem_mmap_ops;
+	return 0;
 }
 
 static const struct file_operations emce_fops = {
-    .owner = THIS_MODULE,
-    .read = mem_read,
-    .write = mem_write,
-    .open = mem_open,
-    .mmap = mem_mmap,
-    .llseek = mem_lseek,
+	.owner = THIS_MODULE,
+	.read = mem_read,
+	.write = mem_write,
+	.open = mem_open,
+	.mmap = mem_mmap,
+	.llseek = mem_lseek,
 };
 
 static struct class *emce_class;
 
 static int emce_of_probe(struct platform_device *ofdev)
 {
-    struct resource r_mem;
-    struct device *dev = &ofdev->dev;
-    struct emce_device *edev = NULL;
+	struct resource r_mem;
+	struct device *dev = &ofdev->dev;
+	struct emce_device *edev = NULL;
 
-    int rc = 0;
-    int i;
-    int minor;
+	int rc = 0;
+	int i;
+	int minor;
 
-    edev = kzalloc(sizeof(struct emce_device), GFP_KERNEL);
-    if(!edev)
-    {
-        dev_err(dev, "Couldn't allocate device private record!\n");
-        return -ENOMEM;
-    }
+	edev = kzalloc(sizeof(struct emce_device), GFP_KERNEL);
+	if(!edev)
+	{
+		dev_err(dev, "Couldn't allocate device private record!\n");
+		return -ENOMEM;
+	}
 
-    rc = of_address_to_resource(dev->of_node, 0, &r_mem);
-    if(rc)
-    {
-        dev_err(dev, "invalid address\n");
-        goto error1;
-    }
-    edev->reg_start = r_mem.start;
-    edev->reg_size = r_mem.end - r_mem.start + 1;
+	rc = of_address_to_resource(dev->of_node, 0, &r_mem);
+	if(rc)
+	{
+		dev_err(dev, "invalid address\n");
+		goto error1;
+	}
+	edev->reg_start = r_mem.start;
+	edev->reg_size = r_mem.end - r_mem.start + 1;
 
-    dev_dbg(dev, "got regs @0x%08lx:0x%08lx\n",
-            (unsigned long)edev->reg_start,
-            (unsigned long)(edev->reg_start+edev->reg_size));
-    for(i=0;i<USER_MEM;i++)
-    {
-        rc = of_address_to_resource(dev->of_node, i+1, &r_mem);
-        if(rc)
-        {
-            dev_err(dev, "invalid address\n");
-            goto error1;
-        }
-        edev->mem[i].start = r_mem.start;
-        edev->mem[i].size = r_mem.end - r_mem.start + 1;
-        dev_dbg(dev, "got mem%d @0x%08lx:0x%08lx\n", i,
-                (unsigned long)edev->mem[i].start,
-                (unsigned long)(edev->mem[i].start + edev->mem[i].size));
-    }
+	dev_dbg(dev, "got regs @0x%08lx:0x%08lx\n",
+			(unsigned long)edev->reg_start,
+			(unsigned long)(edev->reg_start+edev->reg_size));
+	for(i=0;i<USER_MEM;i++)
+	{
+		rc = of_address_to_resource(dev->of_node, i+1, &r_mem);
+		if(rc)
+		{
+			dev_err(dev, "invalid address\n");
+			goto error1;
+		}
+		edev->mem[i].start = r_mem.start;
+		edev->mem[i].size = r_mem.end - r_mem.start + 1;
+		dev_dbg(dev, "got mem%d @0x%08lx:0x%08lx\n", i,
+				(unsigned long)edev->mem[i].start,
+				(unsigned long)(edev->mem[i].start +
+					edev->mem[i].size));
+	}
 
-    edev->irq = irq_of_parse_and_map(dev->of_node, 0);
-    spin_lock_init(&edev->register_lock);
+	edev->irq = irq_of_parse_and_map(dev->of_node, 0);
+	spin_lock_init(&edev->register_lock);
 
-    dev_set_drvdata(dev, (void *)edev);
+	dev_set_drvdata(dev, (void *)edev);
 
-    if(!request_mem_region(edev->reg_start, edev->reg_size,
-                           DRIVER_NAME))
-    {
-        dev_err(dev, "Couldn't lock memory region at 0x%08lx\n",
-                (unsigned long)edev->reg_start);
-        rc = -EBUSY;
-        goto error1;
-    }
+	if(!request_mem_region(edev->reg_start, edev->reg_size,
+				DRIVER_NAME))
+	{
+		dev_err(dev, "Couldn't lock memory region at 0x%08lx\n",
+				(unsigned long)edev->reg_start);
+		rc = -EBUSY;
+		goto error1;
+	}
 
-    edev->base_address = ioremap(edev->reg_start, edev->reg_size);
-    if(edev->base_address == NULL)
-    {
-        dev_err(dev, "Couldn't ioremap memory at 0x%08lx\n",
-                     (unsigned long)edev->reg_start);
-        rc = -EFAULT;
-        goto error2;
-    }
+	edev->base_address = ioremap(edev->reg_start, edev->reg_size);
+	if(edev->base_address == NULL)
+	{
+		dev_err(dev, "Couldn't ioremap memory at 0x%08lx\n",
+				(unsigned long)edev->reg_start);
+		rc = -EFAULT;
+		goto error2;
+	}
 
-    for(i=0;i<USER_MEM;i++)
-    {
-        if(!request_mem_region(edev->mem[i].start, edev->mem[i].size,
-                               DRIVER_NAME))
-        {
-            dev_err(dev, "Couldn't lock memory region at 0x%08lx\n",
-                    (unsigned long)edev->mem[i].start);
-            rc = -EBUSY;
-            goto error3;
-        }
+	for(i=0;i<USER_MEM;i++)
+	{
+		if(!request_mem_region(edev->mem[i].start, edev->mem[i].size,
+					DRIVER_NAME))
+		{
+			dev_err(dev, "Couldn't lock memory region at 0x%08lx\n",
+					(unsigned long)edev->mem[i].start);
+			rc = -EBUSY;
+			goto error3;
+		}
 
-        edev->mem[i].base_address = ioremap(edev->mem[i].start, 
-                edev->mem[i].size);
-        if(edev->mem[i].base_address == NULL)
-        {
-            dev_err(dev, "Couldn't ioremap memory at 0x%08lx\n",
-                         (unsigned long)edev->mem[i].start);
-            rc = -EFAULT;
-            release_mem_region(edev->mem[i].start,edev->mem[i].size);
-            goto error3;
-        }
-    }
-    
-    if(request_irq(edev->irq, edev_isr, IRQF_SHARED, DRIVER_NAME, dev))
-    {
-        dev_err(dev, "Couldn't request IRQ %d\n",edev->irq);
-        rc = -EFAULT;
-        goto error4;
-    }
+		edev->mem[i].base_address = ioremap(edev->mem[i].start,
+				edev->mem[i].size);
+		if(edev->mem[i].base_address == NULL)
+		{
+			dev_err(dev, "Couldn't ioremap memory at 0x%08lx\n",
+					(unsigned long)edev->mem[i].start);
+			rc = -EFAULT;
+			release_mem_region(edev->mem[i].start,
+					edev->mem[i].size);
+			goto error3;
+		}
+	}
 
-   
-    for(i=0; groups[i].attrs; i++)
-    {
-        if(sysfs_create_group(&dev->kobj, &groups[i]))
-        {
-            dev_err(dev, "Couldn't create sysfs entries\n");
-            rc = -EFAULT;
-            goto error5;
-        }
-    }
+	if(request_irq(edev->irq, edev_isr, IRQF_SHARED, DRIVER_NAME, dev))
+	{
+		dev_err(dev, "Couldn't request IRQ %d\n",edev->irq);
+		rc = -EFAULT;
+		goto error4;
+	}
 
-    if(alloc_chrdev_region(&edev->dev, 0, USER_MEM, DRIVER_NAME))
-    {
-        dev_err(dev, "Couldn't alloc char devs\n");
-        rc = -EFAULT;
-        goto error6;
-    }
 
-    cdev_init(&edev->cdev, &emce_fops);
-    edev->cdev.owner = THIS_MODULE;
-    kobject_set_name(&edev->cdev.kobj, "mem");
-    if(cdev_add(&edev->cdev, edev->dev, USER_MEM))
-    {
-        dev_err(dev, "Couldn't create char devs\n");
-        rc = -EFAULT;
-        goto error7;
-    }
+	for(i=0; groups[i].attrs; i++)
+	{
+		if(sysfs_create_group(&dev->kobj, &groups[i]))
+		{
+			dev_err(dev, "Couldn't create sysfs entries\n");
+			rc = -EFAULT;
+			goto error5;
+		}
+	}
 
-    emce_class = class_create(THIS_MODULE, DRIVER_NAME);
-    if(IS_ERR(emce_class))
-        goto error7;
+	if(alloc_chrdev_region(&edev->dev, 0, USER_MEM, DRIVER_NAME))
+	{
+		dev_err(dev, "Couldn't alloc char devs\n");
+		rc = -EFAULT;
+		goto error6;
+	}
 
-    for(minor = 0; minor < USER_MEM; minor++)
-        device_create(emce_class, dev, MKDEV(MAJOR(edev->dev), minor),
-                NULL, "emce%d", minor);
+	cdev_init(&edev->cdev, &emce_fops);
+	edev->cdev.owner = THIS_MODULE;
+	kobject_set_name(&edev->cdev.kobj, "mem");
+	if(cdev_add(&edev->cdev, edev->dev, USER_MEM))
+	{
+		dev_err(dev, "Couldn't create char devs\n");
+		rc = -EFAULT;
+		goto error7;
+	}
 
-    dev_dbg(dev, "Registered char dev %d:%d - %d:%d\n", MAJOR(edev->dev),
-            MINOR(edev->dev), MAJOR(edev->dev), MINOR(edev->dev)+USER_MEM-1);
+	emce_class = class_create(THIS_MODULE, DRIVER_NAME);
+	if(IS_ERR(emce_class))
+		goto error7;
 
-    //Reset Hardware
-    out_be32(edev->base_address + EMCE_RST_REG_OFFSET, EMCE_SOFT_RESET);
-    //Enable interrupts from user logic
-    out_be32(edev->base_address + EMCE_INTR_IPIER_OFFSET, 0xFFFFFFFF);
-    //Enable user logic interrupt source
-    out_be32(edev->base_address + EMCE_INTR_DIER_OFFSET, EMCE_INTR_IPIR_MASK);
-    //Global interrupt enable
-    out_be32(edev->base_address + EMCE_INTR_DGIER_OFFSET, EMCE_INTR_GIE_MASK);
+	for(minor = 0; minor < USER_MEM; minor++)
+		device_create(emce_class, dev, MKDEV(MAJOR(edev->dev), minor),
+				NULL, "emce%d", minor);
 
-    return 0;
+	dev_dbg(dev, "Registered char dev %d:%d - %d:%d\n", MAJOR(edev->dev),
+			MINOR(edev->dev), MAJOR(edev->dev),
+			MINOR(edev->dev)+USER_MEM-1);
+
+	//Reset Hardware
+	out_be32(edev->base_address + EMCE_RST_REG_OFFSET, EMCE_SOFT_RESET);
+	//Enable interrupts from user logic
+	out_be32(edev->base_address + EMCE_INTR_IPIER_OFFSET, 0xFFFFFFFF);
+	//Enable user logic interrupt source
+	out_be32(edev->base_address + EMCE_INTR_DIER_OFFSET,
+			EMCE_INTR_IPIR_MASK);
+	//Global interrupt enable
+	out_be32(edev->base_address + EMCE_INTR_DGIER_OFFSET,
+			EMCE_INTR_GIE_MASK);
+
+	return 0;
 error7:
-    unregister_chrdev_region(edev->dev, USER_MEM);
+	unregister_chrdev_region(edev->dev, USER_MEM);
 error6:
-    for(i--; i>0; i--)
-    {
-        sysfs_remove_group(&dev->kobj, &groups[i]);
-    }
+	for(i--; i>0; i--)
+	{
+		sysfs_remove_group(&dev->kobj, &groups[i]);
+	}
 error5:
-    free_irq(edev->irq, dev);
+	free_irq(edev->irq, dev);
 error4:
-    for(i=0;i<USER_MEM;i++)
-    {
-        if(edev->mem[i].base_address!=NULL)
-        {
-            iounmap(edev->mem[i].base_address);
-            release_mem_region(edev->mem[i].start,edev->mem[i].size);
-        }
-    }
+	for(i=0;i<USER_MEM;i++)
+	{
+		if(edev->mem[i].base_address!=NULL)
+		{
+			iounmap(edev->mem[i].base_address);
+			release_mem_region(edev->mem[i].start,
+					edev->mem[i].size);
+		}
+	}
 error3:
-    iounmap(edev->base_address);
+	iounmap(edev->base_address);
 error2:
-    release_mem_region(edev->reg_start, edev->reg_size);
+	release_mem_region(edev->reg_start, edev->reg_size);
 error1:
-    kfree(edev);
+	kfree(edev);
 
-    return rc;
+	return rc;
 }
 
 static int emce_of_remove(struct platform_device *of_dev)
 {
-    struct device *dev = &of_dev->dev;
-    struct emce_device *edev = dev_get_drvdata(dev);
+	struct device *dev = &of_dev->dev;
+	struct emce_device *edev = dev_get_drvdata(dev);
 
-    int i;
-    int minor;
-    
-    //Reset Hardware (this also disables interrupts)
-    out_be32(edev->base_address + EMCE_RST_REG_OFFSET, EMCE_SOFT_RESET);
+	int i;
+	int minor;
 
-    //unregister stuff
-    cdev_del(&edev->cdev);
-    unregister_chrdev_region(edev->dev, USER_MEM);
-    for(minor = 0; minor < USER_MEM; minor++)
-        device_destroy(emce_class, MKDEV(MAJOR(edev->dev),minor));
-    class_destroy(emce_class);
-    for(i=0; groups[i].attrs; i++)
-    {
-        sysfs_remove_group(&dev->kobj, &groups[i]);
-    }
-    free_irq(edev->irq, dev);
-    for(i=0;i<USER_MEM;i++)
-    {
-        if(edev->mem[i].base_address!=NULL)
-        {
-            iounmap(edev->mem[i].base_address);
-            release_mem_region(edev->mem[i].start,edev->mem[i].size);
-        }
-    }
-    iounmap(edev->base_address);
-    release_mem_region(edev->reg_start, edev->reg_size);
-    kfree(edev);
-    dev_set_drvdata(dev, NULL);
+	//Reset Hardware (this also disables interrupts)
+	out_be32(edev->base_address + EMCE_RST_REG_OFFSET, EMCE_SOFT_RESET);
 
-    return 0;
+	//unregister stuff
+	cdev_del(&edev->cdev);
+	unregister_chrdev_region(edev->dev, USER_MEM);
+	for(minor = 0; minor < USER_MEM; minor++)
+		device_destroy(emce_class, MKDEV(MAJOR(edev->dev),minor));
+	class_destroy(emce_class);
+	for(i=0; groups[i].attrs; i++)
+	{
+		sysfs_remove_group(&dev->kobj, &groups[i]);
+	}
+	free_irq(edev->irq, dev);
+	for(i=0;i<USER_MEM;i++)
+	{
+		if(edev->mem[i].base_address!=NULL)
+		{
+			iounmap(edev->mem[i].base_address);
+			release_mem_region(edev->mem[i].start,
+					edev->mem[i].size);
+		}
+	}
+	iounmap(edev->base_address);
+	release_mem_region(edev->reg_start, edev->reg_size);
+	kfree(edev);
+	dev_set_drvdata(dev, NULL);
+
+	return 0;
 }
 
 static const struct of_device_id emce_of_match[] = {
-    { .compatible = "xlnx,proc2fpga-3.00.b", },
-    { /* end of list */ },
+	{ .compatible = "xlnx,proc2fpga-3.00.b", },
+	{ /* end of list */ },
 };
 
 MODULE_DEVICE_TABLE(of, emce_of_match);
 
 static struct platform_driver emce_of_driver = {
-    .driver = {
-        .name        = DRIVER_NAME,
-        .owner       = THIS_MODULE,
-        .of_match_table = emce_of_match,
-    },
-    .probe       = emce_of_probe,
-    .remove      = emce_of_remove,
+	.driver = {
+		.name        = DRIVER_NAME,
+		.owner       = THIS_MODULE,
+		.of_match_table = emce_of_match,
+	},
+	.probe       = emce_of_probe,
+	.remove      = emce_of_remove,
 };
 
 module_platform_driver(emce_of_driver);
