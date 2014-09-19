@@ -187,13 +187,12 @@ ssize_t mul_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
     struct emce_device *edev = dev_get_drvdata(dev);
     struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
-    s32 value = (s32)in_be32(edev->base_address + eflag->offset);
+    u32 value = in_be32(edev->base_address + eflag->offset);
 
-    if (!eflag->shift)
-        value <<= 16;
     value >>= eflag->shift;
+    value &= 0xFFFF;
 
-    return snprintf(buf, PAGE_SIZE, "%d\n", value);
+    return snprintf(buf, PAGE_SIZE, "%d\n", (s16)value);
 }
 
 ssize_t mul_store(struct device *dev, struct device_attribute *attr,
@@ -205,7 +204,7 @@ ssize_t mul_store(struct device *dev, struct device_attribute *attr,
     u32 val;
     if (kstrtos16(buf, 0, &new))
         return -EINVAL;
-    if (new >> eflag->width)
+    if (((u16)new) >> eflag->width)
         return -EINVAL;
     spin_lock(&edev->register_lock);
     val = in_be32(edev->base_address + eflag->offset);
