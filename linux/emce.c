@@ -106,42 +106,6 @@ ssize_t fpga_flag_store(struct device *dev, struct device_attribute *attr,
 	return size;
 }
 
-static ssize_t scale_sch_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct emce_device *edev = dev_get_drvdata(dev);
-	struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
-	u16 val = in_be16(edev->base_address + eflag->offset);
-	int i;
-	for(i=0; i<12; i++)
-		buf[11-i] = '0' + (char)((val >> i) & 1);
-	buf[12] = '\n';
-	buf[13] = 0;
-	return 13;
-}
-
-static ssize_t scale_sch_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct emce_device *edev = dev_get_drvdata(dev);
-	struct fpga_flag_attribute *eflag = to_fpga_flag(attr);
-	u16 valnew = 0;
-	int i;
-	char tmp;
-	if (count < 12)
-		return -EINVAL;
-	for(i=0; i<12; i++)
-	{
-		tmp = buf[11-i] - '0';
-		if (tmp > 1 || tmp < 0)
-			return -EINVAL;
-		valnew |= tmp << i;
-	}
-	out_be16(edev->base_address + eflag->offset,valnew);
-
-	return count;
-}
-
 ssize_t core_n_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
@@ -260,8 +224,18 @@ FPGA_FLAG(avg, width, 0660, REG1_OFFSET, 24, 2);
 FPGA_FLAG(avg, active, 0440, REG1_OFFSET, 26, 1);
 FPGA_FLAG(avg, err, 0440, REG1_OFFSET, 27, 1);
 FPGA_FLAG(avg, rst, 0220, REG1_OFFSET, 31, 1);
-FPGA_FLAGC(core, scale_sch, 0660, 10, 0, 0, 0, scale_sch_show, scale_sch_store);
-FPGA_FLAGC(core, scale_schi, 0660, 8, 0, 0, 0, scale_sch_show, scale_sch_store);
+FPGA_FLAG(core, scale_sch0, 0660, REG2_OFFSET, 0, 2);
+FPGA_FLAG(core, scale_sch1, 0660, REG2_OFFSET, 2, 2);
+FPGA_FLAG(core, scale_sch2, 0660, REG2_OFFSET, 4, 2);
+FPGA_FLAG(core, scale_sch3, 0660, REG2_OFFSET, 6, 2);
+FPGA_FLAG(core, scale_sch4, 0660, REG2_OFFSET, 8, 2);
+FPGA_FLAG(core, scale_sch5, 0660, REG2_OFFSET, 10, 2);
+FPGA_FLAG(core, scale_schi0, 0660, REG2_OFFSET, 16, 2);
+FPGA_FLAG(core, scale_schi1, 0660, REG2_OFFSET, 18, 2);
+FPGA_FLAG(core, scale_schi2, 0660, REG2_OFFSET, 20, 2);
+FPGA_FLAG(core, scale_schi3, 0660, REG2_OFFSET, 22, 2);
+FPGA_FLAG(core, scale_schi4, 0660, REG2_OFFSET, 24, 2);
+FPGA_FLAG(core, scale_schi5, 0660, REG2_OFFSET, 26, 2);
 FPGA_FLAGM(core, L, 0660, REG3_OFFSET, 0, 12, 4096);
 FPGA_FLAG(core, scale_cmul, 0660, REG3_OFFSET, 14, 2);
 FPGA_FLAGC(core, n, 0660, REG3_OFFSET, 16, 5, 0, core_n_show, core_n_store);
@@ -338,8 +312,18 @@ static struct attribute *avg_attrs[] = {
 };
 
 static struct attribute *core_attrs[] = {
-	&dev_attr_core_scale_sch.attr.attr,
-	&dev_attr_core_scale_schi.attr.attr,
+	&dev_attr_core_scale_sch0.attr.attr,
+	&dev_attr_core_scale_sch1.attr.attr,
+	&dev_attr_core_scale_sch2.attr.attr,
+	&dev_attr_core_scale_sch3.attr.attr,
+	&dev_attr_core_scale_sch4.attr.attr,
+	&dev_attr_core_scale_sch5.attr.attr,
+	&dev_attr_core_scale_schi0.attr.attr,
+	&dev_attr_core_scale_schi1.attr.attr,
+	&dev_attr_core_scale_schi2.attr.attr,
+	&dev_attr_core_scale_schi3.attr.attr,
+	&dev_attr_core_scale_schi4.attr.attr,
+	&dev_attr_core_scale_schi5.attr.attr,
 	&dev_attr_core_scale_cmul.attr.attr,
 	&dev_attr_core_L.attr.attr,
 	&dev_attr_core_n.attr.attr,
