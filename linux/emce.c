@@ -57,6 +57,7 @@ struct emce_device
 	spinlock_t register_lock;
 	struct user_mem mem[USER_MEM];
 	unsigned int irq;
+	struct kernfs_node *int_nodes[16];
 };
 
 struct fpga_flag_attribute {
@@ -430,11 +431,11 @@ static irqreturn_t edev_isr(int irq, void *dev_id)
 	status = in_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET);
 	out_be32(edev->base_address + EMCE_INTR_IPISR_OFFSET, status);
 
-	for(i=0; int_attrs[i]; i++)
+	for(i=0; edev->int_nodes[i]; i++)
 		if((status >> (15 - i)) & 1)
 		{
-			sysfs_notify(&dev->kobj, "int", int_attrs[i]->name);
-			dev_dbg(dev,"got intr %s\n", int_attrs[i]->name);
+			sysfs_notify_dirent(edev->int_nodes[i]);
+			dev_dbg(dev,"got intr %d %s\n", i, int_attrs[i]->name);
 		}
 
 	return IRQ_HANDLED;
@@ -548,6 +549,7 @@ static int emce_of_probe(struct platform_device *ofdev)
 	struct resource r_mem;
 	struct device *dev = &ofdev->dev;
 	struct emce_device *edev = NULL;
+	struct kernfs_node *intrs = NULL;
 
 	int rc = 0;
 	int i;
@@ -635,29 +637,52 @@ static int emce_of_probe(struct platform_device *ofdev)
 		}
 	}
 
-	if(request_irq(edev->irq, edev_isr, IRQF_SHARED, DRIVER_NAME, dev))
-	{
-		dev_err(dev, "Couldn't request IRQ %d\n",edev->irq);
-		rc = -EFAULT;
-		goto error4;
-	}
-
-
 	for(i=0; groups[i].attrs; i++)
 	{
 		if(sysfs_create_group(&dev->kobj, &groups[i]))
 		{
 			dev_err(dev, "Couldn't create sysfs entries\n");
 			rc = -EFAULT;
+			goto error4;
+		}
+	}
+
+	intrs = sysfs_get_dirent(dev->kobj.sd, "int");
+	if(!intrs)
+	{
+		dev_err(dev, "Couldn't locate interrupt directory\n");
+		rc = -EFAULT;
+		goto error4;
+	}
+	for(i=0; int_attrs[i]; i++)
+	{
+		edev->int_nodes[i] = sysfs_get_dirent(intrs,
+				int_attrs[i]->name);
+		if(!edev->int_nodes[i]) {
+			dev_err(dev, "Couldn't locate interrupt %s\n",
+					int_attrs[i]->name);
+			rc = -EFAULT;
 			goto error5;
 		}
+	}
+	sysfs_put(intrs);
+	for(; i<16; i++)
+	{
+		edev->int_nodes[i] = NULL;
+	}
+
+	if(request_irq(edev->irq, edev_isr, IRQF_SHARED, DRIVER_NAME, dev))
+	{
+		dev_err(dev, "Couldn't request IRQ %d\n",edev->irq);
+		rc = -EFAULT;
+		goto error6;
 	}
 
 	if(alloc_chrdev_region(&edev->dev, 0, USER_MEM, DRIVER_NAME))
 	{
 		dev_err(dev, "Couldn't alloc char devs\n");
 		rc = -EFAULT;
-		goto error6;
+		goto error7;
 	}
 
 	cdev_init(&edev->cdev, &emce_fops);
@@ -667,12 +692,12 @@ static int emce_of_probe(struct platform_device *ofdev)
 	{
 		dev_err(dev, "Couldn't create char devs\n");
 		rc = -EFAULT;
-		goto error7;
+		goto error8;
 	}
 
 	emce_class = class_create(THIS_MODULE, DRIVER_NAME);
 	if(IS_ERR(emce_class))
-		goto error7;
+		goto error8;
 
 	for(minor = 0; minor < USER_MEM; minor++)
 		device_create(emce_class, dev, MKDEV(MAJOR(edev->dev), minor),
@@ -694,15 +719,23 @@ static int emce_of_probe(struct platform_device *ofdev)
 			EMCE_INTR_GIE_MASK);
 
 	return 0;
-error7:
+error8:
 	unregister_chrdev_region(edev->dev, USER_MEM);
+error7:
+	free_irq(edev->irq, dev);
+	for(i=0; int_attrs[i]; i++);
 error6:
+	for(i--; i>0; i--)
+	{
+		sysfs_put(edev->int_nodes[i]);
+	}
+	sysfs_put(intrs);
+	for(i=0; groups[i].attrs; i++);
+error5:
 	for(i--; i>0; i--)
 	{
 		sysfs_remove_group(&dev->kobj, &groups[i]);
 	}
-error5:
-	free_irq(edev->irq, dev);
 error4:
 	for(i=0;i<USER_MEM;i++)
 	{
@@ -740,11 +773,15 @@ static int emce_of_remove(struct platform_device *of_dev)
 	for(minor = 0; minor < USER_MEM; minor++)
 		device_destroy(emce_class, MKDEV(MAJOR(edev->dev),minor));
 	class_destroy(emce_class);
+	free_irq(edev->irq, dev);
+	for(i=0; int_attrs[i]; i++)
+	{
+		sysfs_put(edev->int_nodes[i]);
+	}
 	for(i=0; groups[i].attrs; i++)
 	{
 		sysfs_remove_group(&dev->kobj, &groups[i]);
 	}
-	free_irq(edev->irq, dev);
 	for(i=0;i<USER_MEM;i++)
 	{
 		if(edev->mem[i].base_address!=NULL)
