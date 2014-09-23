@@ -166,12 +166,10 @@ ssize_t mul_store(struct device *dev, struct device_attribute *attr,
 	u32 val;
 	if (kstrtos16(buf, 0, &new))
 		return -EINVAL;
-	if (((u16)new) >> eflag->width)
-		return -EINVAL;
 	spin_lock(&edev->register_lock);
 	val = in_be32(edev->base_address + eflag->offset);
 	val &= ~eflag->mask;
-	val |= ((u16)new) << eflag->shift;
+	val |= new << eflag->shift;
 	out_be32(edev->base_address + eflag->offset, val);
 	spin_unlock(&edev->register_lock);
 	return size;
