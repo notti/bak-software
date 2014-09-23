@@ -170,7 +170,7 @@ ssize_t mul_store(struct device *dev, struct device_attribute *attr,
 	spin_lock(&edev->register_lock);
 	val = in_be32(edev->base_address + eflag->offset);
 	val &= ~eflag->mask;
-	val |= new << eflag->shift;
+	val |= (((u32)new) << eflag->shift) & eflag->mask;
 	out_be32(edev->base_address + eflag->offset, val);
 	spin_unlock(&edev->register_lock);
 	return size;
