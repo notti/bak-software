@@ -206,11 +206,6 @@ FPGA_FLAG(rec1, polarity, 0660, REG0_OFFSET, 9, 1);
 FPGA_FLAG(rec1, descramble, 0660, REG0_OFFSET, 10, 1);
 FPGA_FLAG(rec1, rxeqmix, 0660, REG0_OFFSET, 11, 2);
 FPGA_FLAG(rec1, data_valid, 0440, REG0_OFFSET, 13, 1);
-FPGA_FLAG(rec2, enable, 0660, REG0_OFFSET, 16, 1);
-FPGA_FLAG(rec2, polarity, 0660, REG0_OFFSET, 17, 1);
-FPGA_FLAG(rec2, descramble, 0660, REG0_OFFSET, 18, 1);
-FPGA_FLAG(rec2, rxeqmix, 0660, REG0_OFFSET, 19, 2);
-FPGA_FLAG(rec2, data_valid, 0440, REG0_OFFSET, 21, 1);
 FPGA_FLAG(rec, input_select, 0660, REG0_OFFSET, 24, 2);
 FPGA_FLAG(rec, stream_valid, 0440, REG0_OFFSET, 26, 1);
 FPGA_FLAG(rec, rst, 0220, REG0_OFFSET, 31, 1);
@@ -261,10 +256,6 @@ ATTR_INT(rec0_valid);
 ATTR_INT(rec0_invalid);
 ATTR_INT(rec1_valid);
 ATTR_INT(rec1_invalid);
-ATTR_INT(rec2_valid);
-ATTR_INT(rec2_invalid);
-ATTR_INT(rec3_valid);
-ATTR_INT(rec3_invalid);
 ATTR_INT(stream_valid);
 ATTR_INT(stream_invalid);
 ATTR_INT(trigd);
@@ -285,7 +276,6 @@ ATTR_INT(tx_ovfl);
 
 RECEIVER_ATTRS(0)
 RECEIVER_ATTRS(1)
-RECEIVER_ATTRS(2)
 
 static struct attribute *rec_attrs[] = {
 	&dev_attr_rec_input_select.attr.attr,
@@ -356,8 +346,6 @@ static struct attribute *int_attrs[] = {
 	&dev_attr_int_rec0_invalid.attr,
 	&dev_attr_int_rec1_valid.attr,
 	&dev_attr_int_rec1_invalid.attr,
-	&dev_attr_int_rec2_valid.attr,
-	&dev_attr_int_rec2_invalid.attr,
 	&dev_attr_int_stream_valid.attr,
 	&dev_attr_int_stream_invalid.attr,
 	&dev_attr_int_trigd.attr,
@@ -386,10 +374,6 @@ static struct attribute_group groups[] = {
 	{
 		.name = "gtx1",
 		.attrs = receiver_attrs_1,
-	},
-	{
-		.name = "gtx2",
-		.attrs = receiver_attrs_2,
 	},
 	{
 		.name = "receiver",
