@@ -11,6 +11,7 @@
                             setValue(m.target, m.value); break;
                 case 'do': msg = m.target + ' started'; color = 'yellow';
                            if (m.target == 'trigger/arm') { query('trigger/arm'); }
+                           if (m.target == 'auto/run') { query('auto/run'); }
                            break;
                 case 'int': msg = m.target + ' <i class="icon-fire"></i>'; color = 'magenta'; 
                     switch(m.target) {
@@ -21,6 +22,7 @@
                         case 'core_done': query('core/ov_ifft'); query('core/ov_fft'); query('core/ov_cmul'); break;
                         case 'trigd': query('trigger/arm'); break;
                         case 'tx_ovfl': query('transmitter/ovfl'); break;
+                        case 'auto_done': query('auto/run'); break;
                     }
                     break;
             }

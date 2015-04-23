@@ -37,11 +37,6 @@ class memory:
     def __init__(self, hardware, mem, mode):
         self.hardware = hardware
         self.mem = mem
-        with open(base + 'req', 'w') as f:
-            f.write("1\n")
-        with open(base + 'req', 'r') as f:
-            while not int(f.read()):
-                f.seek(0)
         if mode == 'r':
             mode = 'r'
             access = smmap.ACCESS_READ
@@ -74,8 +69,6 @@ class memory:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.data.close()
-        with open(base + 'req', 'w') as f:
-            f.write("0\n")
 
     def __iter__(self):
         return csvit(self)
@@ -86,6 +79,7 @@ class hardware:
               'gtx1/data_valid', 'gtx1/descramble', 'gtx1/enable', 'gtx1/polarity', 'gtx1/rxeqmix',
               'average/active', 'average/err', 'average/width',
               'core/L', 'core/circular', 'core/iq', 'core/n', 'core/ov_fft', 'core/ov_ifft', 'core/ov_cmul',
+              'auto/rst', 'auto/run',
               'core/scale_sch0',
               'core/scale_sch1',
               'core/scale_sch2',
