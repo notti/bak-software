@@ -206,7 +206,7 @@ FPGA_FLAG(rec1, polarity, 0660, REG0_OFFSET, 9, 1);
 FPGA_FLAG(rec1, descramble, 0660, REG0_OFFSET, 10, 1);
 FPGA_FLAG(rec1, rxeqmix, 0660, REG0_OFFSET, 11, 2);
 FPGA_FLAG(rec1, data_valid, 0440, REG0_OFFSET, 13, 1);
-FPGA_FLAG(rec, input_select, 0660, REG0_OFFSET, 24, 2);
+FPGA_FLAG(rec, input_select, 0660, REG0_OFFSET, 24, 1);
 FPGA_FLAG(rec, stream_valid, 0440, REG0_OFFSET, 26, 1);
 FPGA_FLAG(rec, rst, 0220, REG0_OFFSET, 31, 1);
 FPGA_FLAGM(_, depth, 0660, REG1_OFFSET, 0, 16, 49152);

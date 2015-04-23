@@ -66,7 +66,7 @@ class memory:
         self.pos += 1
 
     def writecomplex(self, real, imag):
-        self.data[self.pos:self.pos+2] = real, imag
+        self.data[self.pos:self.pos+2] = imag, real
         self.pos += 2
 
     def __enter__(self):
@@ -84,7 +84,6 @@ class memory:
 class hardware:
     values = ['gtx0/data_valid', 'gtx0/descramble', 'gtx0/enable', 'gtx0/polarity', 'gtx0/rxeqmix',
               'gtx1/data_valid', 'gtx1/descramble', 'gtx1/enable', 'gtx1/polarity', 'gtx1/rxeqmix',
-              'gtx2/data_valid', 'gtx2/descramble', 'gtx2/enable', 'gtx2/polarity', 'gtx2/rxeqmix',
               'average/active', 'average/err', 'average/width',
               'core/L', 'core/circular', 'core/iq', 'core/n', 'core/ov_fft', 'core/ov_ifft', 'core/ov_cmul',
               'core/scale_sch0',
