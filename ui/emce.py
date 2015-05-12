@@ -79,7 +79,6 @@ class hardware:
               'gtx1/data_valid', 'gtx1/descramble', 'gtx1/enable', 'gtx1/polarity', 'gtx1/rxeqmix',
               'average/active', 'average/err', 'average/width',
               'core/L', 'core/circular', 'core/iq', 'core/n', 'core/ov_fft', 'core/ov_ifft', 'core/ov_cmul',
-              'auto/rst', 'auto/run',
               'core/scale_sch0',
               'core/scale_sch1',
               'core/scale_sch2',
