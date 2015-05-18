@@ -4,3 +4,4 @@ twistd.pid
 twistd.log
 *.pyc
 
+*.asv
