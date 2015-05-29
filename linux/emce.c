@@ -248,6 +248,7 @@ FPGA_FLAG(tx, dc_balance, 0660, REG5_OFFSET, 17, 1);
 FPGA_FLAG(tx, toggle, 0660, REG5_OFFSET, 18, 1);
 FPGA_FLAG(tx, resync, 0220, REG5_OFFSET, 19, 1);
 FPGA_FLAG(tx, rst, 0220, REG5_OFFSET, 23, 1);
+FPGA_FLAG(mem, req, 0660, REG5_OFFSET, 24, 1);
 FPGA_FLAG(tx, sat, 0660, REG5_OFFSET, 28, 1);
 FPGA_FLAG(tx, ovfl, 0660, REG5_OFFSET, 29, 1);
 FPGA_FLAG(tx, shift, 0660, REG5_OFFSET, 30, 2);
@@ -357,6 +358,7 @@ static struct attribute *int_attrs[] = {
 
 static struct attribute *system_attrs[] = {
 	&dev_attr___depth.attr.attr,
+	&dev_attr_mem_req.attr.attr,
 	NULL
 };
 
