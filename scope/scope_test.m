@@ -4,7 +4,6 @@ set(oszi,'Timeout', 10);
 fopen(oszi);
 
 fprintf(oszi,'*RST');
-pause(0.1);
 fprintf(oszi,':SINGLE');
 fprintf(oszi,':TRIGGER:EDGE:SOURCE CHAN1 ');
 fprintf(oszi,':TRIGGER:EDGE:LEVEL 0V');
@@ -82,8 +81,7 @@ x = A(inda)/B(indb);
 diff = angle(B(inda))-angle(A(indb));
 
 fprintf('fa: %.2fMHz fb: %.2fMHz a: %.2f<%.2f b: %.2f<%.2f diff: %.2f a/b: %.2f+j%.2f %.2f<%.2f\n', fa/1e6, fb/1e6, abs(A(inda)), angle(A(inda))/pi*180, abs(B(indb)), angle(B(indb))/pi*180, diff/pi*180, real(x), imag(x), abs(x), angle(x)/pi*180);
-match_raw(k) = x;
-k = k+1
+
 %% cleanup
 
 fclose(oszi);
