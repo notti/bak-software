@@ -1,8 +1,8 @@
-load('testdata.mat');
+load('testdataUnknown.mat');
 
 
 [open, short, match] = calcZ132(900e6);
-[S11, S12, S22] = calcErrorBox2(xopen, xshort, xmatch, open, short, match);
+[S11, S12, S22] = calcErrorBoxM(xopen, xshort, xmatch, open, short, match);
 
 Gl = calcGl(S11,S12,S22,x);
 Z = 50 * (1+Gl)/(1-Gl);
