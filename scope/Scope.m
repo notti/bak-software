@@ -77,7 +77,7 @@ classdef Scope < handle
             data = (data - yreference)*yincrement + yorigin;
         end
         
-        function x = acquire(obj, rangea, rangeb, scale)
+        function [x, a, b] = acquire(obj, rangea, rangeb, scale)
             %setup
             fprintf(obj.handle, ':CHANNEL1:RANGE %gV', rangea);
             fprintf(obj.handle, ':CHANNEL2:RANGE %gV', rangeb);
