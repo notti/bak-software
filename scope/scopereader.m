@@ -18,7 +18,7 @@ pause();
 
 
 [open, short, match] = calcZ132(900e6);
-[S11, S12, S22] = calcErrorBox(xopen, xshort, xmatch, open, short, match);
+[S11, S12, S22] = calcErrorBoxM(xopen, xshort, xmatch, open, short, match);
 
 %%
 
