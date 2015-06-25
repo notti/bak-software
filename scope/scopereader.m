@@ -24,7 +24,7 @@ pause();
 
 while true
     pause();
-    [x, a, b] = oszi.acquire(resa,resb,10e-6);
+    [x, a, b] = oszi.acquireRho(resa,resb,10e-6);
     Gl = calcGl(S11,S12,S22,x);
     Z = 50 * (1+Gl)/(1-Gl);
     fprintf('G = %.2f j%.2f; Z = %.2f j%.2f\n', real(Gl), imag(Gl), real(Z), imag(Z));
