@@ -77,7 +77,7 @@ classdef Scope < handle
             data = (data - yreference)*yincrement + yorigin;
         end
         
-        function [x, a, b] = acquire(obj, rangea, rangeb, scale)
+        function [xincrement, a, b] = acquireAB(obj, rangea, rangeb, scale)
             %setup
             fprintf(obj.handle, ':CHANNEL1:RANGE %gV', rangea);
             fprintf(obj.handle, ':CHANNEL2:RANGE %gV', rangeb);
@@ -88,6 +88,10 @@ classdef Scope < handle
 
             [xincrement, a] = obj.acquireChan(obj.chana);
             [~, b] = obj.acquireChan(obj.chanb);
+        end
+        
+        function [xincrement, x] = acquireRho(obj, rangea, rangeb, scale)
+            [xincrement, a, b] = obj.acquireAB(rangea, rangeb, scale);
             
             a = a - mean(a);
             b = b - mean(b);
