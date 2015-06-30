@@ -25,7 +25,7 @@ classdef Scope < handle
 
             %Basic settings needed for every measurement
             fprintf(obj.handle, ':SINGLE');
-            fprintf(obj.handle, ':TRIGGER:EDGE:SOURCE CHAN1 ');
+            fprintf(obj.handle, ':TRIGGER:EDGE:SOURCE CHAN%d', a);
             fprintf(obj.handle, ':TRIGGER:EDGE:LEVEL 0V');
             fprintf(obj.handle, ':TRIGGER:EDGE:SLOPE POS');
             fprintf(obj.handle, ':TRIGGER:SWEEP NORMAL');
