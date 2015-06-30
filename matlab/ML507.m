@@ -42,6 +42,7 @@ classdef ML507 < handle
         
         function delete(obj)
             fclose(obj.comm);
+            delete(obj.comm);
         end
         
         function value = query(obj, which)
