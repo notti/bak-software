@@ -22,6 +22,7 @@ classdef Transmitter < handle
         
         function toggle(obj)
             obj.ml.do('transmitter/toggle');
+            fgetl(obj.ml.comm);
         end
 
         function resync(obj)
