@@ -45,6 +45,11 @@ classdef ML507 < handle
             delete(obj.comm);
         end
         
+        function error = overlap_add(obj)
+            obj.core.run();
+            error = obj.core.ov_ifft + obj.core.ov_ifft + obj.core.ov_ifft;
+        end
+        
         function value = query(obj, which)
             fprintf(obj.comm, 'get %s\n', which);
             value = str2double(fgetl(obj.comm));
@@ -59,6 +64,31 @@ classdef ML507 < handle
             fprintf(obj.comm, sprintf('do %s', which));
             fgetl(obj.comm);
         end
+        
+        function overflow = single(obj)
+            overflow = 0;
+            fprintf(obj.comm, 'single');
+            fgetl(obj.comm);
+            status = fgetl(obj.comm);
+            if strcmp(status, 'OVERFLOW');
+                overflow = 1;
+            end
+        end
+        
+        function run(obj)
+            fprintf(obj.comm, 'run');
+            fgetl(obj.comm);
+        end
+        
+        function overflow = stop(obj)
+            overflow = 0;
+            fprintf(obj.comm, 'stop');
+            fgetl(obj.comm);
+            status = fgetl(obj.comm);
+            if strcmp(status, 'OVERFLOW');
+                overflow = 1;
+            end
+        end            
     end
     
     methods

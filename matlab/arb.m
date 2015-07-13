@@ -5,8 +5,8 @@ smbv = SMBV('TCPIP0::128.131.85.233::inst0::INSTR');
 %%
 
 fsample  = 100e6;
-spacing  = 60e3;
-carriers = 101;
+spacing  = 1e6;
+carriers = 3;
 fc = (-(carriers-1)/2 : (carriers-1)/2) * spacing;
 
 t = (0 : fsample/spacing-1) / fsample;
@@ -30,6 +30,7 @@ ml507.depth = length(s);
 ml507.transmitter.resync();
 ml507.out_inactive = s;
 ml507.transmitter.toggle();
+ml507.transmitter.mul = 32767;
 
 %%
 

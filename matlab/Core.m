@@ -19,6 +19,11 @@ classdef Core < handle
             obj.ml = ml;
         end
         
+        function run(obj)
+            obj.ml.do('core/start');
+            fgetl(obj.ml.comm);
+        end
+        
         function reset(obj)
             obj.ml.do('core/rst');
         end
