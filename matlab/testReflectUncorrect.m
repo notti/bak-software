@@ -16,22 +16,9 @@ zvl.freerun();
 zvl.single();
 
 while true
-    trig.trigger(); trig.wait();
     if ml507.single() ~= 0
         break
     end
-%    doit(ml507);
-%    pause(0.1);
     trig.trigger(); trig.wait();
-    if ml507.single() ~= 0
-        break
-    end
-%    doit(ml507);
-%    pause(0.1);
-    trig.trigger(); trig.wait();
-    if ml507.single() ~= 0
-        break
-    end
-%    doit(ml507);
-%    pause(0.1);
+    pause(0.1);
 end
