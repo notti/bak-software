@@ -88,25 +88,13 @@ class Stuff(static.File):
 
 base = '/sys/devices/plb@0/84000000.proc2fpga/'
 
-def lock():
-    pass
-#    with open(base + 'req', 'w') as f:
-#        f.write("1\n")
-#    with open(base + 'req', 'r') as f:
-#        while not int(f.read()):
-#            f.seek(0)
-
-def unlock():
-    pass
-#    with open(base + 'req', 'w') as f:
-#        f.write("0\n")
+runstatus = None
 
 class MatlabProtocol(LineReceiver):
     delimiter = b'\n'
     def __init__(self, factory):
         self.factory = factory
         self.status = 'IDLE'
-        self.runstatus = None
         self.l = 0
         self.fdev = None
         self.dev = None
@@ -119,52 +107,50 @@ class MatlabProtocol(LineReceiver):
     def connectionMade(self):
         self.factory.clients.add(self)
     def lineReceived(self, line):
+        global runstatus
+        print line
         cmd = line.split(' ')
         args = cmd[1:]
         cmd = cmd[0]
-        if self.runstatus == None:
-            if cmd == 'set':
-                hardware[args[0]] = args[1]
-                self.send('OK')
-            elif cmd == 'do':
-                if args[0] == 'trigger/arm':
-                    self.status = 'avg_done'
-                elif args[0] == 'transmitter/toggle':
-                    self.status = 'tx_toggled'
-                elif args[0] == 'core/start':
-                    self.status = 'core_done'
-                hardware[args[0]] = "1"
-                self.send('OK')
-            elif cmd == 'get':
-                self.send(hardware[args[0]])
-            elif cmd == 'read':
-                l = int(args[1])
-                lock()
-                with open('/dev/'+args[0], 'rb') as f:
-                    data = mmap.mmap(f.fileno(), l, mmap.MAP_SHARED, mmap.PROT_READ)
-                    self.transport.write(data[0:l])
-                    data.close()
-                unlock()
-            elif cmd == 'write':
-                lock()
-                self.l = int(args[1])
-                self.fdev = open('/dev/'+args[0], 'r+b')
-                self.dev = mmap.mmap(self.fdev.fileno(), self.l, mmap.MAP_SHARED, mmap.PROT_WRITE)
-                self.dev.seek(0)
-                self.setRawMode()
-            elif cmd == 'single':
-                self.runstatus = 'single'
+        if cmd == 'set':
+            hardware[args[0]] = args[1]
+            self.send('OK')
+        elif cmd == 'do':
+            if args[0] == 'trigger/arm':
                 self.status = 'avg_done'
-                hardware['trigger/arm'] = '1'
-                self.send('OK')
-            elif cmd == 'run':
-                self.runstatus = 'run'
-                self.status = 'avg_done'
-                hardware['trigger/arm'] = '1'
-                self.send('OK')
-        else:
-            if cmd == 'stop':
-                self.runstatus = 'single'
+            elif args[0] == 'transmitter/toggle':
+                self.status = 'tx_toggled'
+            elif args[0] == 'core/start':
+                self.status = 'core_done'
+            hardware[args[0]] = "1"
+            self.send('OK')
+        elif cmd == 'get':
+            self.send(hardware[args[0]])
+        elif cmd == 'read':
+            l = int(args[1])
+            with open('/dev/'+args[0], 'rb') as f:
+                data = mmap.mmap(f.fileno(), l, mmap.MAP_SHARED, mmap.PROT_READ)
+                self.transport.write(data[0:l])
+                data.close()
+        elif cmd == 'write':
+            self.l = int(args[1])
+            self.fdev = open('/dev/'+args[0], 'r+b')
+            self.dev = mmap.mmap(self.fdev.fileno(), self.l, mmap.MAP_SHARED, mmap.PROT_WRITE)
+            self.dev.seek(0)
+            self.setRawMode()
+        elif cmd == 'single':
+            runstatus = 'single'
+            self.status = 'avg_done'
+            hardware['trigger/arm'] = '1'
+            self.send('OK')
+        elif cmd == 'run':
+            runstatus = 'run'
+            self.status = 'avg_done'
+            hardware['trigger/arm'] = '1'
+            self.send('OK')
+        elif cmd == 'stop':
+            runstatus = 'single'
+            self.send('OK')
 
     def rawDataReceived(self, data):
         if len(data) > self.l:
@@ -180,14 +166,14 @@ class MatlabProtocol(LineReceiver):
             self.dev = None
             self.fdev.close()
             self.fdev = None
-            unlock()
             self.setLineMode(data)
             self.send('OK')
             
             
     def intr(self, which):
+        global runstatus
         if self.status == which:
-            if self.runstatus == 'single' or self.runstatus == 'run':
+            if runstatus == 'single' or runstatus == 'run':
                 if self.status == 'avg_done':
                     self.status = 'core_done'
                     hardware['core/start'] = '1'
@@ -195,16 +181,15 @@ class MatlabProtocol(LineReceiver):
                 elif self.status == 'core_done':
                     if hardware['core/ov_fft'] == '1' or hardware['core/ov_ifft'] == '1' or hardware['core/ov_cmul'] == '1':
                         self.status = 'IDLE'
-                        self.runstatus = None
-                        self.send('OVERFLOW')
+                        runstatus = None
                         return
                     self.status = 'tx_toggled'
                     hardware['transmitter/toggle'] = '1'
                     return
                 elif self.status == 'tx_toggled':
-                    if self.runstatus == 'single':
+                    if runstatus == 'single':
                         self.status = 'IDLE'
-                        self.runstatus = None
+                        runstatus = None
                         self.send('DONE')
                         return
                     self.status = 'avg_done'
@@ -233,7 +218,8 @@ def intr(which):
     threads.deferToThread(hardware.check).addCallback(intr)
     for target in which:
         for client in list(proto.clients):
-            client.send(cmd='int', target=target)
+            if runstatus == None:
+                client.send(cmd='int', target=target)
         for client in list(matlab.clients):
             client.intr(target)
 intr(())

@@ -26,7 +26,7 @@ classdef ZVLTrigger < handle
         end
         
         function trigger(obj)
-            fprintf(obj.handle, '*TRG');
+            fprintf(obj.handle, '*TRG; *WAI;');
         end
         
         function wait(obj)
