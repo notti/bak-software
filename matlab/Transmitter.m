@@ -41,8 +41,8 @@ classdef Transmitter < handle
             value = obj.ml.query('transmitter/muli') + 1i*obj.ml.query('transmitter/mulq');
         end
         function set.mul(obj, value)
-            obj.ml.setValue('transmitter/muli', real(value));
-            obj.ml.setValue('transmitter/mulq', imag(value));
+            obj.ml.setValue('transmitter/muli', int16(real(value)));
+            obj.ml.setValue('transmitter/mulq', int16(imag(value)));
         end
              
         function value = get.dc_balance(obj)

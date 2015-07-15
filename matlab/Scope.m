@@ -8,6 +8,10 @@ classdef Scope < handle
         chanb;
     end
     
+    properties (Dependent)
+        trigger_chan;
+    end
+    
     methods
         function obj = Scope(address, a, b)
             obj.chana = a;
@@ -113,6 +117,13 @@ classdef Scope < handle
             diff = angle(B(inda))-angle(A(indb));
             
             fprintf('fa: %.2fMHz fb: %.2fMHz a: %.2f<%.2f b: %.2f<%.2f diff: %.2f a/b: %.2f+j%.2f %.2f<%.2f\n', fa/1e6, fb/1e6, abs(A(inda)), angle(A(inda))/pi*180, abs(B(indb)), angle(B(indb))/pi*180, diff/pi*180, real(x), imag(x), abs(x), angle(x)/pi*180);
+        end
+        
+        function set.trigger_chan(obj, value)
+            fprintf(obj.handle, ':TRIGGER:EDGE:SOURCE CHAN%d', value);
+        end
+        function value = get.trigger_chan(obj)
+            value = query(obj.handle, ':TRIGGER:EDGE:SOURCE?');
         end
     end
     

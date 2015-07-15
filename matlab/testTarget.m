@@ -1,52 +1,37 @@
 ml507 = ML507();
 oszi = Scope('TCPIP0::mwoszi2.emce.tuwien.ac.at::INSTR', 2, 1);
 smbv = SMBV('TCPIP0::128.131.85.233::inst0::INSTR');
+trig = ZVLTrigger('ASRL1::INSTR');
+zvl = ZVL('TCPIP0::128.131.85.229::inst0::INSTR');
 
 %%
 
-fsample  = 100e6;
-spacing  = 60e3;
-carriers = 101;
-
-fc = (-(carriers-1)/2 : (carriers-1)/2) * spacing;
-
-t = (0 : fsample/spacing-1) / fsample;
-
-crest_limit = 6;
-crest = inf;
-
-while crest > crest_limit
-    ph = rand(size(fc)) * 2*pi;
-    [t_m, ph_m] = meshgrid(t, ph);
-    s_orig = sum( exp(1i*(2*pi*diag(fc)*t_m + ph_m)) );
-    crest = 20*log10(max(abs(s_orig))/rms(s_orig));
-end
-
-fprintf('Crestfactor = %.2fdB\n', crest);
-
-scale = max(abs([max(real(s_orig)) imag(max(s_orig)) min(real(s_orig)) imag(min(s_orig))]));
-s = int16(s_orig.*32767./scale);
-
-ml507.depth = length(s);
+ml507.depth = 10000;
 ml507.transmitter.resync();
-ml507.out_inactive = s;
+ml507.out_inactive = ones(1, 20000)*32767 + ones(1, 20000)*32767i;
 ml507.transmitter.toggle();
 ml507.transmitter.mul = 32767;
+ml507.transmitter.shift = 2;
+%%
+
+f = designfilt('lowpassfir','FilterOrder',4096-1,'CutoffFrequency',25e6,'SampleRate',100e6,'Window','hamming');
+H = fft(impz(f)).';
+ml507.H = int16(H.*32767./max([max(real(H)) max(imag(H))]));
 
 %%
 
 center = 900e6;
 
-resa = 50e-3;
-resb = 50e-3;
+resa = 80e-3;
+resb = 80e-3;
 
-freqs = center + fc;
+freqs = center;
 
 N = 20;
 
-xopen = zeros(N, length(freqs));
-xshort = zeros(N, length(freqs));
-xmatch = zeros(N, length(freqs));
+xopen = zeros(20, length(freqs));
+xshort = zeros(20, length(freqs));
+xmatch = zeros(20, length(freqs));
 
 fprintf('Connect open ');
 pause();
@@ -89,30 +74,49 @@ xmatch = mean(xmatch);
 
 %%
 
-resa = 100e-3;
+oszi.trigger_chan = 1;
+
+resa = 50e-3;
 resb = 50e-3;
 
 freqs = 900e6;
 
-while true
-    pause();
-    
-    x = zeros(N, length(freqs));
-    for i=1:N
-        fprintf('.');
-        [xincrement, a, b] = oszi.acquireAB(resa,resb,10e-6);
-        x(i,:) = manyRho(xincrement, a, b, freqs);
-    end
-    
-    x = mean(x);
+target = 0.1*exp(1i*15/180*pi);
+%target = 0;
 
-    Gl = calcGl(S11(51), S12(51), S22(51), x)
-    Z = 50 .* (1+Gl)./(1-Gl)
+%zvl.freerun();
+%zvl.single();
+%ml507.run();
+ml507.transmitter.mul = 32767;
+
+diff = 1;
+tic
+while true
+    mul = ml507.transmitter.mul * exp(1i*angle(diff)) * abs(diff);
+    ml507.transmitter.mul = mul;
+    fprintf('mul = %.2f<%.2f;\n', abs(mul), angle(mul)/pi*180);
+%    pause(1);
+
+    
+    [xincrement, a, b] = oszi.acquireAB(resa,resb,10e-6);
+    x = manyRho(xincrement, a, b, freqs);
+
+    Gl = 1/calcGl(S11, S12, S22, x);
+    diff = target/Gl;
+    fprintf('VNA Gl = %.2f<%.2f; diff = %.2f<%.2f; ', abs(Gl), angle(Gl)/pi*180, abs(diff), angle(diff)/pi*180);
+    if (abs(abs(diff) - 1) < 0.01) && (angle(diff) < 1)
+        fprintf('\n');
+        Gl
+        break
+    end
+    %Z = 50 .* (1+Gl)./(1-Gl)
     %fprintf('G = %.2f j%.2f; Z = %.2f j%.2f\n', real(Gl), imag(Gl), real(Z), imag(Z));
     %[mean(abs(20*log10(abs(Gl))-20*log10(abs(Gl_genau)))) mean(abs(angle(Gl)-angle(Gl_genau)))]
     %plot([freqs_0 freqs_5 freqs_10 freqs.'],[20*log10(abs(Gl_0)) 20*log10(abs(Gl_5)) 20*log10(abs(Gl_10)) 20*log10(abs(Gl))]);
+    
+    %fprintf(trig.handle, '*TRG;*WAI;*TRG;*WAI;');
 end
-
+toc
 %%
 
 delete(ml507);
