@@ -213,6 +213,9 @@ FPGA_FLAGM(_, depth, 0660, REG1_OFFSET, 0, 16, 49152);
 FPGA_FLAG(trig, type, 0660, REG1_OFFSET, 16, 1);
 FPGA_FLAG(trig, arm, 0660, REG1_OFFSET, 18, 1);
 FPGA_FLAG(trig, int, 0220, REG1_OFFSET, 19, 1);
+FPGA_FLAG(auto, run, 0220, REG1_OFFSET, 20, 1);
+FPGA_FLAG(auto, single, 0220, REG1_OFFSET, 21, 1);
+FPGA_FLAG(auto, rst, 0220, REG1_OFFSET, 22, 1);
 FPGA_FLAG(trig, rst, 0220, REG1_OFFSET, 23, 1);
 FPGA_FLAG(avg, width, 0660, REG1_OFFSET, 24, 2);
 FPGA_FLAG(avg, active, 0440, REG1_OFFSET, 26, 1);
@@ -248,10 +251,9 @@ FPGA_FLAG(tx, dc_balance, 0660, REG5_OFFSET, 17, 1);
 FPGA_FLAG(tx, toggle, 0660, REG5_OFFSET, 18, 1);
 FPGA_FLAG(tx, resync, 0220, REG5_OFFSET, 19, 1);
 FPGA_FLAG(tx, rst, 0220, REG5_OFFSET, 23, 1);
-FPGA_FLAG(mem, req, 0660, REG5_OFFSET, 24, 1);
-FPGA_FLAG(tx, sat, 0660, REG5_OFFSET, 28, 1);
-FPGA_FLAG(tx, ovfl, 0660, REG5_OFFSET, 29, 1);
-FPGA_FLAG(tx, shift, 0660, REG5_OFFSET, 30, 2);
+FPGA_FLAG(tx, sat, 0660, REG5_OFFSET, 24, 1);
+FPGA_FLAG(tx, ovfl, 0660, REG5_OFFSET, 25, 1);
+FPGA_FLAG(tx, shift, 0660, REG5_OFFSET, 28, 4);
 ATTR_INT(rec0_valid);
 ATTR_INT(rec0_invalid);
 ATTR_INT(rec1_valid);
@@ -263,6 +265,8 @@ ATTR_INT(avg_done);
 ATTR_INT(core_done);
 ATTR_INT(tx_toggled);
 ATTR_INT(tx_ovfl);
+ATTR_INT(auto_start);
+ATTR_INT(auto_stop);
 
 #define RECEIVER_ATTRS(_num) \
 	static struct attribute *receiver_attrs_##_num[] = { \
@@ -281,6 +285,13 @@ static struct attribute *rec_attrs[] = {
 	&dev_attr_rec_input_select.attr.attr,
 	&dev_attr_rec_stream_valid.attr.attr,
 	&dev_attr_rec_rst.attr.attr,
+	NULL
+};
+
+static struct attribute *auto_attrs[] = {
+	&dev_attr_auto_run.attr.attr,
+	&dev_attr_auto_single.attr.attr,
+	&dev_attr_auto_rst.attr.attr,
 	NULL
 };
 
@@ -358,7 +369,6 @@ static struct attribute *int_attrs[] = {
 
 static struct attribute *system_attrs[] = {
 	&dev_attr___depth.attr.attr,
-	&dev_attr_mem_req.attr.attr,
 	NULL
 };
 
@@ -378,6 +388,10 @@ static struct attribute_group groups[] = {
 	{
 		.name = "receiver",
 		.attrs = rec_attrs,
+	},
+	{
+		.name = "auto",
+		.attrs = auto_attrs,
 	},
 	{
 		.name = "trigger",
