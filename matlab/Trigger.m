@@ -18,6 +18,7 @@ classdef Trigger < handle
         
         function arm(obj)
             obj.ml.do('trigger/arm');
+            fgetl(obj.ml.comm);
         end
 
         function fire(obj)

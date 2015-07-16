@@ -17,6 +17,9 @@ classdef ML507 < handle
         stream_valid;
         input;
         inbuf;
+        H;
+        out_inactive;
+        out_active;
     end
     
     methods
@@ -27,7 +30,7 @@ classdef ML507 < handle
             if nargin < 1
                 address = '192.168.2.2';
             end
-            obj.comm = tcpip(address, port, 'InputBufferSize', 49*1024*2*2, 'OutputBufferSize', 49*1024*2*2, 'ByteOrder', 'b');
+            obj.comm = tcpip(address, port, 'InputBufferSize', 49*1024*2*2, 'OutputBufferSize', 49*1024*2*2, 'ByteOrder', 'bigEndian');
             fopen(obj.comm);
             obj.gtx = GTX(obj);
             obj.receiver = Receiver(obj);
@@ -60,22 +63,55 @@ classdef ML507 < handle
     methods
         function set.depth(obj, value)
             obj.setValue('depth', value);
-            obj.average.reset();
+            obj.transmitter.resync();
         end
         function value = get.depth(obj)
             value = obj.query('depth');
         end
         
         function set.inbuf(obj, value)
-            len = obj.depth;
-            fprintf(obj.comm, sprintf('write emce0 %d', len*2));
+            len = length(value);
+            fprintf(obj.comm, sprintf('write emce0 %d', len*2)); %2B/value
             fwrite(obj.comm, value, 'int16');
             fgetl(obj.comm);
         end
         function value = get.inbuf(obj)
             len = obj.depth;
-            fprintf(obj.comm, sprintf('read emce0 %d', len*2));
+            fprintf(obj.comm, sprintf('read emce0 %d', len*2)); %2B/value
             value = fread(obj.comm, len, 'int16');
+        end
+        
+        function set.H(obj, value)
+            len = length(value);
+            fprintf(obj.comm, sprintf('write emce1 %d', len*4)); %2B/value i/q
+            fwrite(obj.comm, reshape([imag(value);real(value)],1,[]), 'int16');
+            fgetl(obj.comm);
+        end
+        function value = get.H(obj)
+            len = obj.core.n;
+            fprintf(obj.comm, sprintf('read emce1 %d', len*4)); %2B/value i/q
+            value = fread(obj.comm, [2, len], 'int16');
+            value = value(2,:) + value(1,:)*1i;
+        end
+        
+        function set.out_inactive(obj, value)
+            len = length(value);
+            fprintf(obj.comm, sprintf('write emce2 %d', len*4)); %2B/value i/q
+            fwrite(obj.comm, reshape([imag(value);real(value)],1,[]), 'int16');
+            fgetl(obj.comm);
+        end
+        function value = get.out_inactive(obj)
+            len = obj.depth;
+            fprintf(obj.comm, sprintf('read emce2 %d', len*4)); %2B/value i/q
+            value = fread(obj.comm, [2, len], 'int16');
+            value = value(2,:) + value(1,:)*1i;
+        end
+        
+        function value = get.out_active(obj)
+            len = obj.depth;
+            fprintf(obj.comm, sprintf('read emce3 %d', len*4)); %2B/value i/q
+            value = fread(obj.comm, [2, len], 'int16');
+            value = value(2,:) + value(1,:)*1i;
         end
     end
     
