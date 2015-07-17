@@ -1,8 +1,8 @@
 ml507 = ML507();
 oszi = Scope('TCPIP0::mwoszi2.emce.tuwien.ac.at::INSTR', 2, 1);
 smbv = SMBV('TCPIP0::128.131.85.233::inst0::INSTR');
-trig = ZVLTrigger('ASRL1::INSTR');
-zvl = ZVL('TCPIP0::128.131.85.229::inst0::INSTR');
+%trig = ZVLTrigger('ASRL1::INSTR');
+%zvl = ZVL('TCPIP0::128.131.85.229::inst0::INSTR');
 
 %%
 
@@ -81,7 +81,7 @@ resb = 50e-3;
 
 freqs = 900e6;
 
-target = 0.1*exp(1i*15/180*pi);
+target = 0.5*exp(1i*30/180*pi);
 %target = 0;
 
 %zvl.freerun();

@@ -92,6 +92,7 @@ class hardware:
               'core/scale_schi4',
               'core/scale_schi5',
               'core/scale_cmul', 'core/start',
+              'auto/run',
               'receiver/input_select', 'receiver/stream_valid',
               'transmitter/dc_balance', 'transmitter/frame_offset', 'transmitter/muli', 'transmitter/mulq', 'transmitter/toggle', 'transmitter/shift', 'transmitter/ovfl', 'transmitter/sat',
               'trigger/arm', 'trigger/type',
