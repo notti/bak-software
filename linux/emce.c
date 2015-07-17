@@ -364,6 +364,8 @@ static struct attribute *int_attrs[] = {
 	&dev_attr_int_core_done.attr,
 	&dev_attr_int_tx_toggled.attr,
 	&dev_attr_int_tx_ovfl.attr,
+	&dev_attr_int_auto_start.attr,
+	&dev_attr_int_auto_stop.attr,
 	NULL
 };
 
