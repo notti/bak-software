@@ -11,7 +11,6 @@
                             setValue(m.target, m.value); break;
                 case 'do': msg = m.target + ' started'; color = 'yellow';
                            if (m.target == 'trigger/arm') { query('trigger/arm'); }
-                           if (m.target == 'auto/run') { query('auto/run'); }
                            break;
                 case 'int': msg = m.target + ' <i class="icon-fire"></i>'; color = 'magenta'; 
                     switch(m.target) {
@@ -19,10 +18,11 @@
                         case 'rec0_invalid': case 'rec0_valid': query('gtx0/data_valid'); break;
                         case 'rec1_invalid': case 'rec1_valid': query('gtx1/data_valid'); break;
                         case 'stream_invalid': case 'stream_valid': query('receiver/stream_valid'); break;
-                        case 'core_done': query('core/ov_ifft'); query('core/ov_fft'); query('core/ov_cmul'); break;
                         case 'trigd': query('trigger/arm'); break;
                         case 'tx_ovfl': query('transmitter/ovfl'); break;
-                        case 'auto_done': query('auto/run'); break;
+                        case 'auto_start': query('auto/run'); break;
+                        case 'auto_stop': query('auto/run');
+                        case 'core_done': query('core/ov_ifft'); query('core/ov_fft'); query('core/ov_cmul'); break;
                     }
                     break;
             }
@@ -133,17 +133,18 @@
                         break;
                     case 'shift':
                     case 'scale_cmul':
-                        switch(value) {
-                            case '0': value = '16'; break;
-                            case '1': value = '15'; break;
-                            case '2': value = '14'; break;
-                            case '3': value = '13'; break;
-                        }
-                        break;
+                        value = '16' - value;
                 }
                 element.text(value);
             } else if ((element = $(filter)).length) { 
                 if (element.is('a')) { //button
+                    if (tmp[0] == 'auto' && tmp[1] == 'run') {
+                        if (parseInt(value)) {
+                            element.find('i').removeClass("icon-play").addClass("icon-stop");
+                        } else {
+                            element.find('i').removeClass("icon-stop").addClass("icon-play");
+                        }
+                    }
                     if (tmp[1] == 'arm') {
                         if (parseInt(value)) {
                             element.addClass('btn-warning disabled');
