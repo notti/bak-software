@@ -31,6 +31,8 @@ classdef ML507 < handle
                 address = '192.168.2.2';
             end
             obj.comm = tcpip(address, port, 'InputBufferSize', 49*1024*2*2, 'OutputBufferSize', 49*1024*2*2, 'ByteOrder', 'bigEndian');
+            obj.comm.UserData.mode = 1;
+            obj.comm.BytesAvailableFcn = @getInterrupts;
             fopen(obj.comm);
             obj.gtx = GTX(obj);
             obj.receiver = Receiver(obj);
@@ -38,6 +40,13 @@ classdef ML507 < handle
             obj.trigger = Trigger(obj);
             obj.core = Core(obj);
             obj.transmitter = Transmitter(obj);
+            
+            function getInterrupts(obj, event)
+                if obj.BytesAvailable
+                    line = fgetl(obj);
+                    fprintf('intr %s from device\n', line);
+                end
+            end
         end
         
         function delete(obj)
