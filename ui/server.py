@@ -105,7 +105,6 @@ class MatlabProtocol(LineReceiver):
     def connectionMade(self):
         self.factory.clients.add(self)
     def lineReceived(self, line):
-        global runstatus
         print line
         cmd = line.split(' ')
         args = cmd[1:]
@@ -158,12 +157,17 @@ class MatlabProtocol(LineReceiver):
             
             
     def intr(self, which):
+        self.send(which, True)
         if self.status == which:
             self.status = None
             self.send(which)
 
-    def send(self, line):
-        self.transport.write(line+self.delimiter)
+    def send(self, line, intr=False):
+        msg = line + self.delimiter
+#        if not intr:
+#            msg = '0' + self.delimiter + msg
+#        print('"'+msg+'"')
+        self.transport.write(msg)
     
 
 class MatlabFactory(protocol.Factory):
@@ -182,8 +186,7 @@ def intr(which):
     threads.deferToThread(hardware.check).addCallback(intr)
     for target in which:
         for client in list(proto.clients):
-            if runstatus == None:
-                client.send(cmd='int', target=target)
+            client.send(cmd='int', target=target)
         for client in list(matlab.clients):
             client.intr(target)
 intr(())

@@ -1,17 +1,15 @@
 ml507 = ML507();
 oszi = Scope('TCPIP0::mwoszi2.emce.tuwien.ac.at::INSTR', 2, 1);
-smbv = SMBV('TCPIP0::128.131.85.233::inst0::INSTR');
-%trig = ZVLTrigger('ASRL1::INSTR');
-%zvl = ZVL('TCPIP0::128.131.85.229::inst0::INSTR');
 
 %%
 
-ml507.depth = 10000;
+ml507.depth = 20000;
 ml507.transmitter.resync();
 ml507.out_inactive = ones(1, 20000)*32767 + ones(1, 20000)*32767i;
 ml507.transmitter.toggle();
 ml507.transmitter.mul = 32767;
 ml507.transmitter.shift = 2;
+
 %%
 
 f = designfilt('lowpassfir','FilterOrder',4096-1,'CutoffFrequency',25e6,'SampleRate',100e6,'Window','hamming');
@@ -81,21 +79,21 @@ resb = 50e-3;
 
 freqs = 900e6;
 
-target = 0.5*exp(1i*30/180*pi);
+target = 0.1*exp(1i*130/180*pi);
 %target = 0;
 
 %zvl.freerun();
 %zvl.single();
 %ml507.run();
-ml507.transmitter.mul = 32767;
+mul = 32767;
 
 diff = 1;
 tic
 while true
-    mul = ml507.transmitter.mul * exp(1i*angle(diff)) * abs(diff);
+    mul = mul * exp(1i*angle(diff)) * abs(diff);
     ml507.transmitter.mul = mul;
     fprintf('mul = %.2f<%.2f;\n', abs(mul), angle(mul)/pi*180);
-%    pause(1);
+    pause(0.5);
 
     
     [xincrement, a, b] = oszi.acquireAB(resa,resb,10e-6);
@@ -104,7 +102,7 @@ while true
     Gl = 1/calcGl(S11, S12, S22, x);
     diff = target/Gl;
     fprintf('VNA Gl = %.2f<%.2f; diff = %.2f<%.2f; ', abs(Gl), angle(Gl)/pi*180, abs(diff), angle(diff)/pi*180);
-    if (abs(abs(diff) - 1) < 0.01) && (angle(diff) < 1)
+    if (abs(abs(diff) - 1) < 0.01) && (abs(angle(diff)/pi*180) < 0.5)
         fprintf('\n');
         Gl
         break
