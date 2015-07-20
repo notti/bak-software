@@ -88,13 +88,11 @@ class Stuff(static.File):
 
 base = '/sys/devices/plb@0/84000000.proc2fpga/'
 
-runstatus = None
-
 class MatlabProtocol(LineReceiver):
     delimiter = b'\n'
     def __init__(self, factory):
         self.factory = factory
-        self.status = 'IDLE'
+        self.status = None
         self.l = 0
         self.fdev = None
         self.dev = None
@@ -122,6 +120,8 @@ class MatlabProtocol(LineReceiver):
                 self.status = 'tx_toggled'
             elif args[0] == 'core/start':
                 self.status = 'core_done'
+            elif args[0] == 'auto/single':
+                self.status = 'auto_stop'
             hardware[args[0]] = "1"
             self.send('OK')
         elif cmd == 'get':
@@ -138,19 +138,6 @@ class MatlabProtocol(LineReceiver):
             self.dev = mmap.mmap(self.fdev.fileno(), self.l, mmap.MAP_SHARED, mmap.PROT_WRITE)
             self.dev.seek(0)
             self.setRawMode()
-        elif cmd == 'single':
-            runstatus = 'single'
-            self.status = 'avg_done'
-            hardware['trigger/arm'] = '1'
-            self.send('OK')
-        elif cmd == 'run':
-            runstatus = 'run'
-            self.status = 'avg_done'
-            hardware['trigger/arm'] = '1'
-            self.send('OK')
-        elif cmd == 'stop':
-            runstatus = 'single'
-            self.send('OK')
 
     def rawDataReceived(self, data):
         if len(data) > self.l:
@@ -171,32 +158,9 @@ class MatlabProtocol(LineReceiver):
             
             
     def intr(self, which):
-        global runstatus
         if self.status == which:
-            if runstatus == 'single' or runstatus == 'run':
-                if self.status == 'avg_done':
-                    self.status = 'core_done'
-                    hardware['core/start'] = '1'
-                    return
-                elif self.status == 'core_done':
-                    if hardware['core/ov_fft'] == '1' or hardware['core/ov_ifft'] == '1' or hardware['core/ov_cmul'] == '1':
-                        self.status = 'IDLE'
-                        runstatus = None
-                        return
-                    self.status = 'tx_toggled'
-                    hardware['transmitter/toggle'] = '1'
-                    return
-                elif self.status == 'tx_toggled':
-                    if runstatus == 'single':
-                        self.status = 'IDLE'
-                        runstatus = None
-                        self.send('DONE')
-                        return
-                    self.status = 'avg_done'
-                    hardware['trigger/arm'] = '1'
-            else:
-                self.status = 'IDLE'
-                self.send(which)
+            self.status = None
+            self.send(which)
 
     def send(self, line):
         self.transport.write(line+self.delimiter)
