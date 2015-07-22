@@ -1,11 +1,30 @@
 classdef Receiver < handle
+    % Receiver   Handles the receiver of the fpga.
+    % Never use directly. Use ML507.receiver instead!
+    %
+    % Receiver Properties:
+    %   valid - selected input has valid data
+    %   input - input select
+    %
+    % Receiver Methods:
+    %   reset - Reset receiver module
+    %
+    % See also ML507
     properties (Access = protected, Hidden = true)
         ml;
     end
     
     properties (Dependent)
-        valid;
+        % INPUT - input select
+        % Switching inputs also resets the transmitter.
+        % 0 ... GTX0 (SATA 1)
+        % 1 ... GTX1 (SATA 2)
         input;
+    end
+    
+    properties (Dependent, SetAccess = private)
+        % VALID     selected input has valid data
+        valid;
     end
     
     methods
@@ -14,6 +33,9 @@ classdef Receiver < handle
         end
         
         function reset(obj)
+            % RESET     Resets the receiver module
+            % Warning: This resets EVERY receiver and therefor invalidates
+            % the datastream. This also causes a reset for the transmitter.
             obj.ml.do('receiver/rst');
         end
         
@@ -28,6 +50,4 @@ classdef Receiver < handle
             obj.ml.setValue('receiver/input_select', value);
         end
     end
-    
 end
-

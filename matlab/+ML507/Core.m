@@ -1,34 +1,91 @@
 classdef Core < handle
-    % Core Class for handling Core stuff
+    % Core   Handles the convolute functionality of the fpga.
+    % Never use directly. Use ML507.core instead!
+    %
+    % Core Properties:
+    %   scale_sch - fft scaling schedule
+    %   scale_schi - ifft scaling schedule
+    %   scale_cmul - cmul scaling
+    %   L - L for overlap add
+    %   n - (i)fft length
+    %   iq - iq demodulation
+    %   circular - circular convolution
+    %   ov_fft - fft overflow status
+    %   ov_ifft - ifft overflow status
+    %   ov_cmul - cmul overflow status
+    %
+    % Core Methods:
+    %   reset - Reset core module
+    %   run - Execute convolution
+    %
+    % See also ML507
     properties (Access = protected, Hidden = true)
         ml;
     end
     
-    properties (Dependent)
+    properties (SetAccess = immutable)
+        % SCALE_SCH - fft scaling schedule
+        %   Scaling for the six fft stages. Every stage can be scaled by 0,
+        %   1 or 2 bit. The different stages can be accessed with indexing.
         scale_sch;
+        % SCALE_SCHi - ifft scaling schedule
+        %   Scaling for the six ifft stages. Every stage can be scaled by 0,
+        %   1 or 2 bit. The different stages can be accessed with indexing.
         scale_schi;
+    end
+    
+    properties (Dependent)
+        % SCALE_CMUL - cmul scaling schedule
+        %   Scaling for the cmul operation. Can be 1-4 Bit.
         scale_cmul;
+        % L - L for overlap add
+        %   Needs to be smaller than fft length!
         L;
+        % N - (i)fft length
+        %   fft length. Can be 8, 16, 32, 64, 128, 256, 512, 1024, 2048,
+        %   4096.
         n;
+        % IQ - iq demodulation
+        %   1 for enabling iq demodulation.
         iq;
+        % CIRCULAR - circular convolution
+        %   1 ... circular convolution
+        %   0 ... linear convolution
         circular;
     end
     
     properties (Dependent, SetAccess = private)
+        % OV_FFT - fft overflow status
+        % Gets set after every run
+        % See also RUN
         ov_fft;
+        % OV_IFFT - ifft overflow status
+        % Gets set after every run
+        % See also RUN
         ov_ifft;
+        % OV_CMUL - cmul overflow status
+        % Gets set after every run
+        % See also RUN
         ov_cmul;        
     end
     
     methods
         function obj = Core(ml)
             obj.ml = ml;
+            obj.scale_sch = ML507.Schedule(ml, 'core/scale_sch');
+            obj.scale_schi = ML507.Schedule(ml, 'core/scale_schi');
+        end
+        
+        function delete(obj)
+            delete(obj.scale_sch);
+            delete(obj.scale_schi);
         end
         
         function varargout = run(obj)
             % RUN  Execute convolution
-            %   error = RUN returns 0 if successful
-            %   [fft, ifft, cmul] = RUN returns 0 if fft, ifft and cmul were successful
+            %   error = RUN() returns 0 if successful
+            %   [fft, ifft, cmul] = RUN() returns more detailed status for fft, ifft and cmul.
+            %       Those values are 0 in case of success.
             obj.ml.do('core/start');
             if nargout == 1
                 varargout{1} = obj.ov_fft + obj.ov_ifft + obj.ov_cmul;
@@ -42,6 +99,7 @@ classdef Core < handle
         end
         
         function reset(obj)
+            % RESET     Resets the core module
             obj.ml.do('core/rst');
         end
         
@@ -92,6 +150,4 @@ classdef Core < handle
             obj.ml.setValue('core/scale_cmul', value);
         end
     end
-    
 end
-
