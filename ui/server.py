@@ -8,6 +8,7 @@ import emce
 import json
 import csv
 import mmap
+import subprocess
 
 hardware = emce.hardware()
 
@@ -30,6 +31,10 @@ class MonitorProtocol(protocol.Protocol):
             self.send(**data)
         elif data['cmd'] == 'get':
             self.send(cmd = 'set', target = data['target'], value = hardware[data['target']])
+        elif data['cmd'] == 'shutdown':
+            self.send(**data)
+            subprocess.call('/sbin/halt')
+
     def send(self, **kwargs):
         self.transport.write(json.dumps(kwargs))
 
@@ -105,24 +110,35 @@ class MatlabProtocol(LineReceiver):
     def connectionMade(self):
         self.factory.clients.add(self)
     def lineReceived(self, line):
-        print line
+        print '<<', line
         cmd = line.split(' ')
         args = cmd[1:]
         cmd = cmd[0]
         if cmd == 'set':
             hardware[args[0]] = args[1]
             self.send('OK')
+            for client in list(proto.clients):
+                client.send(cmd='update', target = args[0], value = args[1])
         elif cmd == 'do':
-            if args[0] == 'trigger/arm':
+            val = "1"
+            if args[0] == 'acquire':
+                args[0] = 'trigger/arm'
                 self.status = 'avg_done'
             elif args[0] == 'transmitter/toggle':
                 self.status = 'tx_toggled'
             elif args[0] == 'core/start':
                 self.status = 'core_done'
+            elif args[0] == 'auto/run':
+                self.status = 'auto_start'
+            elif args[0] == 'auto/stop':
+                args[0] = 'auto/run'
+                val = "0"
+                self.status = 'auto_stop'
             elif args[0] == 'auto/single':
                 self.status = 'auto_stop'
-            hardware[args[0]] = "1"
-            self.send('OK')
+            else:
+                self.send('OK')
+            hardware[args[0]] = val
         elif cmd == 'get':
             self.send(hardware[args[0]])
         elif cmd == 'read':
@@ -137,6 +153,9 @@ class MatlabProtocol(LineReceiver):
             self.dev = mmap.mmap(self.fdev.fileno(), self.l, mmap.MAP_SHARED, mmap.PROT_WRITE)
             self.dev.seek(0)
             self.setRawMode()
+        elif cmd == 'shutdown':
+            self.send('OK')
+            subprocess.call('/sbin/halt')
 
     def rawDataReceived(self, data):
         if len(data) > self.l:
@@ -155,19 +174,14 @@ class MatlabProtocol(LineReceiver):
             self.setLineMode(data)
             self.send('OK')
             
-            
     def intr(self, which):
-        self.send(which, True)
         if self.status == which:
             self.status = None
-            self.send(which)
+            self.send('OK')
 
-    def send(self, line, intr=False):
-        msg = line + self.delimiter
-#        if not intr:
-#            msg = '0' + self.delimiter + msg
-#        print('"'+msg+'"')
-        self.transport.write(msg)
+    def send(self, line):
+        print '>> '+line
+        self.transport.write(line + self.delimiter)
     
 
 class MatlabFactory(protocol.Factory):
@@ -175,6 +189,27 @@ class MatlabFactory(protocol.Factory):
         self.clients = set()
     def buildProtocol(self, addr):
         return MatlabProtocol(self)
+
+class MatlabAsyncProtocol(LineReceiver):
+    delimiter = b'\n'
+    def __init__(self, factory):
+        self.factory = factory
+    def connectionLost(self, reason):
+        self.factory.clients.remove(self)
+    def connectionMade(self):
+        self.factory.clients.add(self)
+    def lineReceived(self, line):
+        print line
+    def intr(self, which):
+        self.send(which)
+    def send(self, line):
+        self.transport.write(line + self.delimiter)
+
+class MatlabAsyncFactory(protocol.Factory):
+    def __init__(self):
+        self.clients = set()
+    def buildProtocol(self, addr):
+        return MatlabAsyncProtocol(self)
 
 root = Stuff("web")
 application = service.Application('web-ui')
@@ -189,10 +224,15 @@ def intr(which):
             client.send(cmd='int', target=target)
         for client in list(matlab.clients):
             client.intr(target)
+        for client in list(matlabasync.clients):
+            client.intr(target)
 intr(())
 w = internet.TCPServer(8080, WebSocketFactory(proto))
 matlab = MatlabFactory()
 m = internet.TCPServer(8000, matlab)
+matlabasync = MatlabAsyncFactory()
+ma = internet.TCPServer(8001, matlabasync)
 m.setServiceParent(sc)
+ma.setServiceParent(sc)
 i.setServiceParent(sc)
 w.setServiceParent(sc)

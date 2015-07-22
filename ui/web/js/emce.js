@@ -25,6 +25,9 @@
                         case 'core_done': query('core/ov_ifft'); query('core/ov_fft'); query('core/ov_cmul'); break;
                     }
                     break;
+                case 'shutdown':
+                    msg = 'shutting down'; color = 'red';
+                    break;
             }
             log('<i class="icon-arrow-left"></i> ' + msg, color);
         };
@@ -210,6 +213,12 @@
             if (attribute == 'log/rst') {
                 clearLog();
                 e.preventDefault();
+                return;
+            }
+            if (attribute == 'log/shutdown') {
+                var line = '<i class="icon-arrow-right"></i> shutdown';
+                ws.send(JSON.stringify({cmd:'shutdown'}))
+                log(line, 'blue');
                 return;
             }
             if (element.hasClass('toggle'))

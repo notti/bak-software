@@ -1,11 +1,40 @@
 classdef ML507 < handle
-    % ML507 Handles the fpga stuff
-    properties %(Access = protected, Hidden = true)
+    % ML507   Class to control the fpga.
+    %
+    % ML507 Properties:
+    %   gtx - gtx submodules 1 and 2
+    %   receiver - receiver submodule
+    %   average - average submodule
+    %   trigger - trigger submodule
+    %   core - core submodule
+    %   transmitter - transmitter submodule
+    %   depth - number of samples
+    %   inbuf - input buffer
+    %   H - filter
+    %   out_inactive - inactive output buffer
+    %   out_active - active output buffer
+    %   running - automatic mode active
+    %   verbose - print events to console
+    %
+    % ML507 Methods:
+    %   acquire - arm trigger and wait for average to finish
+    %   run - start automatic mode
+    %   stop - stop automatic mode
+    %   single - do a single acquire, convolute, toggle run
+    %   shutdown - shutdown device
+    %
+    % See also AVERAGE, GTX, TRANSMITTER, RECEIVER, CORE, TRIGGER
+    properties (Access = protected, Hidden = true)
         comm;
         comma;
     end
     
     properties
+        % VERBOSE   print events to console
+        verbose;
+    end
+    
+    properties (SetAccess = immutable)
         gtx;
         receiver;
         average;
@@ -15,58 +44,94 @@ classdef ML507 < handle
     end
     
     properties (Dependent)
+        % DEPTH      number of samples
+        % Needs to be between 1 and floor((49152/core.L))*core.L
         depth;
-        stream_valid;
-        input;
+        % inbuf     input buffer
+        % Complex valued input buffer. Can be read and written. Values get
+        % converted to int16 (-32768 to 32767). Values need prescaling to
+        % achieve full range.
         inbuf;
+        % H     filter
+        % Complex valued fourier transformed filter. Can be read and
+        % written. Values get converted to int16 (-32768 to 32767). Values
+        % need prescaling to achieve full range.
         H;
+        % OUT_INACTIVE  inactive output buffer
+        % Complex valued inactive output buffer. Can be read and written.
+        % Values get converted to int16 (-32768 to 32767). Values need
+        % prescaling to achieve full range.
         out_inactive;
+    end
+    
+    properties (Dependent, SetAccess = private)
+        % OUT_ACTIVE    active output buffer
+        % Complex valued active output buffer. Can only be read.
         out_active;
+        % RUNNING   automatic mode active
+        running;
+    end
+    
+    events
+        auto_start;
+        auto_stop;
+        stream_valid;
+        stream_invalid;
+        tx_toggled;
+        avg_done;
+        core_done;
+        tx_ovfl;
     end
     
     methods
-        function obj = ML507(address, port)
+        function obj = ML507(address, port, verbose)
+            if nargin < 3
+                verbose = false;
+            end
             if nargin < 2
                 port = 8000;
             end
             if nargin < 1
                 address = '192.168.2.2';
             end
+            obj.verbose = verbose;
             obj.comm = tcpip(address, port, 'InputBufferSize', 49*1024*2*2, 'OutputBufferSize', 49*1024*2*2, 'ByteOrder', 'bigEndian');
             obj.comma = tcpip(address, port+1);
-            obj.comma.BytesAvailableFcn = @(com,event)getInterrupts(obj,com,event);
-            obj.comma.UserData.tx_overflow = 0;
-            obj.comma.UserData.auto_running = 0;
+            obj.comma.BytesAvailableFcn = @(com,event)getInterrupts(obj,com);
             fopen(obj.comm);
             fopen(obj.comma);
-            obj.gtx = GTX(obj);
-            obj.receiver = Receiver(obj);
-            obj.average = Average(obj);
-            obj.trigger = Trigger(obj);
-            obj.core = Core(obj);
-            obj.transmitter = Transmitter(obj);
-            function getInterrupts(obj, com, event)
+            obj.gtx = ML507.GTX(obj);
+            obj.receiver = ML507.Receiver(obj);
+            obj.average = ML507.Average(obj);
+            obj.trigger = ML507.Trigger(obj);
+            obj.core = ML507.Core(obj);
+            obj.transmitter = ML507.Transmitter(obj);
+            function getInterrupts(obj, com)
                 line = fgetl(com);
-                switch line
-                    case 'auto_start'
-                        com.UserData.auto_running = 1;
-                    case 'auto_stop'
-                        com.UserData.auto_running = 0;
-                    case 'tx_ovfl'
-                        com.UserData.tx_overflow = 1;
+                if obj.verbose
+                    fprintf('intr %s from device\n', line);
                 end
-                fprintf('intr %s from device\n', line);
+                try
+                    notify(obj, line);
+                end
             end
         end
         
         function delete(obj)
-            obj.comma.BytesAvailableFcn = '';
+            delete(obj.gtx);
+            delete(obj.receiver);
+            delete(obj.average);
+            delete(obj.trigger);
+            delete(obj.core);
+            delete(obj.transmitter);
             fclose(obj.comma);
             delete(obj.comma);
             fclose(obj.comm);
             delete(obj.comm);
         end
-        
+    end
+    
+    methods (Hidden = true)
         function value = query(obj, which)
             fprintf(obj.comm, 'get %s\n', which);
             value = str2double(fgetl(obj.comm));
@@ -79,43 +144,39 @@ classdef ML507 < handle
         
         function do(obj, which)
             fprintf(obj.comm, sprintf('do %s', which));
-            fgetl(obj.comm);
+            status = fgetl(obj.comm);
+            if strcmp(status, 'OK') ~= 1
+                me = MException('ML507:Error', 'Failure executing %s', which);
+                throw(me);
+            end
         end
-        
     end
     
     methods
         function acquire(obj)
-            obj.comm.do('acquire');
+        % ACQUIRE   arm trigger and wait for average to finish
+            obj.do('acquire');
         end
-        
-
-        function overflow = single(obj)
-            overflow = 0;
-            fprintf(obj.comm, 'single');
-            fgetl(obj.comm);
-            status = fgetl(obj.comm);
-            if strcmp(status, 'OVERFLOW');
-                overflow = 1;
-            end
-        end
-        
 
         function run(obj)
-        % RUN do some stuff
-            fprintf(obj.comm, 'run');
-            fgetl(obj.comm);
+        % RUN   start automatic mode
+            obj.do('auto/run');
         end
         
-        function overflow = stop(obj)
-            overflow = 0;
-            fprintf(obj.comm, 'stop');
-            fgetl(obj.comm);
-            status = fgetl(obj.comm);
-            if strcmp(status, 'OVERFLOW');
-                overflow = 1;
-            end
-        end            
+        function stop(obj)
+        % STOP  stop automatic mode
+            obj.do('auto/stop');
+        end
+        
+        function single(obj)
+        % SINGLE    do a single acquire, convolute, toggle run
+            obj.do('auto/single');
+        end
+        
+        function shutdown(obj)
+        % SHUTDOWN  shutdown the device
+            fprintf(obj.comm, 'shutdown');
+        end
     end
     
     methods
@@ -171,7 +232,9 @@ classdef ML507 < handle
             value = fread(obj.comm, [2, len], 'int16');
             value = value(2,:) + value(1,:)*1i;
         end
-    end
-    
+        
+        function value = get.running(obj)
+            value = obj.query('auto/run');
+        end
+    end 
 end
-
