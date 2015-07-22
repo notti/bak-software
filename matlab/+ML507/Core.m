@@ -137,10 +137,10 @@ classdef Core < handle
         end
         
         function value = get.circular(obj)
-            value = obj.ml.query('core/L');
+            value = obj.ml.query('core/circular');
         end
         function set.circular(obj, value)
-            obj.ml.setValue('core/L', value);
+            obj.ml.setValue('core/circular', value);
         end
         
         function value = get.scale_cmul(obj)
