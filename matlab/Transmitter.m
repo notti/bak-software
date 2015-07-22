@@ -1,4 +1,5 @@
 classdef Transmitter < handle
+    % Transmitter   Provides access to the ML507 transmitter
     properties (Access = protected, Hidden = true)
         ml;
     end
@@ -22,7 +23,6 @@ classdef Transmitter < handle
         
         function toggle(obj)
             obj.ml.do('transmitter/toggle');
-            fgetl(obj.ml.comm);
         end
 
         function resync(obj)

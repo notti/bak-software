@@ -6,6 +6,9 @@ classdef Average < handle
     properties (Dependent)
         active;
         width;
+    end
+    
+    properties (Dependent, SetAccess = private)
         err;
     end
     

@@ -1,4 +1,5 @@
 classdef ML507 < handle
+    % ML507 Handles the fpga stuff
     properties %(Access = protected, Hidden = true)
         comm;
         comma;
@@ -33,7 +34,9 @@ classdef ML507 < handle
             end
             obj.comm = tcpip(address, port, 'InputBufferSize', 49*1024*2*2, 'OutputBufferSize', 49*1024*2*2, 'ByteOrder', 'bigEndian');
             obj.comma = tcpip(address, port+1);
-            obj.comma.BytesAvailableFcn = @getInterrupts;
+            obj.comma.BytesAvailableFcn = @(com,event)getInterrupts(obj,com,event);
+            obj.comma.UserData.tx_overflow = 0;
+            obj.comma.UserData.auto_running = 0;
             fopen(obj.comm);
             fopen(obj.comma);
             obj.gtx = GTX(obj);
@@ -42,8 +45,16 @@ classdef ML507 < handle
             obj.trigger = Trigger(obj);
             obj.core = Core(obj);
             obj.transmitter = Transmitter(obj);
-            function getInterrupts(obj, event)
-                line = fgetl(obj);
+            function getInterrupts(obj, com, event)
+                line = fgetl(com);
+                switch line
+                    case 'auto_start'
+                        com.UserData.auto_running = 1;
+                    case 'auto_stop'
+                        com.UserData.auto_running = 0;
+                    case 'tx_ovfl'
+                        com.UserData.tx_overflow = 1;
+                end
                 fprintf('intr %s from device\n', line);
             end
         end
@@ -54,11 +65,6 @@ classdef ML507 < handle
             delete(obj.comma);
             fclose(obj.comm);
             delete(obj.comm);
-        end
-        
-        function error = overlap_add(obj)
-            obj.core.run();
-            error = obj.core.ov_ifft + obj.core.ov_ifft + obj.core.ov_ifft;
         end
         
         function value = query(obj, which)
@@ -76,6 +82,14 @@ classdef ML507 < handle
             fgetl(obj.comm);
         end
         
+    end
+    
+    methods
+        function acquire(obj)
+            obj.comm.do('acquire');
+        end
+        
+
         function overflow = single(obj)
             overflow = 0;
             fprintf(obj.comm, 'single');
@@ -86,7 +100,9 @@ classdef ML507 < handle
             end
         end
         
+
         function run(obj)
+        % RUN do some stuff
             fprintf(obj.comm, 'run');
             fgetl(obj.comm);
         end
