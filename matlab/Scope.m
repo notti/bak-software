@@ -63,13 +63,15 @@ classdef Scope < handle
                                   %'COMMAND INTERRUPTED' error occurs
             
             if ismember(0, data)
-                throw(MException('Scope::acquireChan:DataHole',...
+                ME = MException('Scope::acquireChan:DataHole',...
                     ['Data hole in acquired waveform. This should '...
-                    'never happen in single shot']));
+                    'never happen in single shot']);
+                throw(ME);
             end
             if ismember(255, data) || ismember(1, data)
-                throw(MException('Scope::acquireChan:Clipped',...
-                    'Data clipped at display border'));
+                ME = MException('Scope::acquireChan:Clipped',...
+                    'Data clipped at display border');
+                throw(ME);
             end
             
             preambleBlock = strsplit(preambleBlock, ',');
