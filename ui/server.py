@@ -95,22 +95,44 @@ base = '/sys/devices/plb@0/84000000.proc2fpga/'
 
 class MatlabProtocol(LineReceiver):
     delimiter = b'\n'
+    timeout = 2
     def __init__(self, factory):
         self.factory = factory
         self.status = None
         self.l = 0
         self.fdev = None
         self.dev = None
+        self.__timeout = None
+
     def connectionLost(self, reason):
         self.factory.clients.remove(self)
         if self.dev is not None:
             self.dev.close()
         if self.fdev is not None:
             self.fdev.close()
+
     def connectionMade(self):
         self.factory.clients.add(self)
+
+    def timedout(self):
+        self.__timeout = None
+        self.status = None
+        self.send('ERROR')
+
+    def waitFor(self, status):
+        self.status = status
+        if self.__timeout is not None:
+            self.__timeout.cancel()
+            self.__timeout = None
+        self.__timeout = reactor.callLater(self.timeout, self.timedout)
+
+    def notimeout(self):
+        self.status = None
+        if self.__timeout is not None:
+            self.__timeout.cancel()
+            self.__timeout = None
+
     def lineReceived(self, line):
-        print '<<', line
         cmd = line.split(' ')
         args = cmd[1:]
         cmd = cmd[0]
@@ -123,19 +145,19 @@ class MatlabProtocol(LineReceiver):
             val = "1"
             if args[0] == 'acquire':
                 args[0] = 'trigger/arm'
-                self.status = 'avg_done'
+                self.waitFor('avg_done')
             elif args[0] == 'transmitter/toggle':
-                self.status = 'tx_toggled'
+                self.waitFor('tx_toggled')
             elif args[0] == 'core/start':
-                self.status = 'core_done'
+                self.waitFor('core_done')
             elif args[0] == 'auto/run':
-                self.status = 'auto_start'
+                self.waitFor('auto_start')
             elif args[0] == 'auto/stop':
                 args[0] = 'auto/run'
                 val = "0"
-                self.status = 'auto_stop'
+                self.waitFor('auto_stop')
             elif args[0] == 'auto/single':
-                self.status = 'auto_stop'
+                self.waitFor('auto_stop')
             else:
                 self.send('OK')
             hardware[args[0]] = val
@@ -176,11 +198,10 @@ class MatlabProtocol(LineReceiver):
             
     def intr(self, which):
         if self.status == which:
-            self.status = None
+            self.notimeout()
             self.send('OK')
 
     def send(self, line):
-        print '>> '+line
         self.transport.write(line + self.delimiter)
     
 

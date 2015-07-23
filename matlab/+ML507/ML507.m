@@ -84,19 +84,21 @@ classdef ML507 < handle
     end
     
     methods
-        function obj = ML507(address, port, verbose)
-            if nargin < 3
-                verbose = false;
-            end
-            if nargin < 2
-                port = 8000;
-            end
-            if nargin < 1
-                address = '192.168.2.2';
-            end
-            obj.verbose = verbose;
-            obj.comm = tcpip(address, port, 'InputBufferSize', 49*1024*2*2, 'OutputBufferSize', 49*1024*2*2, 'ByteOrder', 'bigEndian');
-            obj.comma = tcpip(address, port+1);
+        function obj = ML507(varargin)
+            % ML507     Constructs a handle for communication with the fpga
+            p = inputParser;
+            % This is kinda dumb address check, but otherwise parse will
+            % mistake a parameter name as an address
+            validAddress = @(x) ischar(x) && ~isempty(strfind(x, '.'));
+            addOptional(p, 'address', '192.168.2.2', validAddress);
+            addOptional(p, 'port', 8000, @isnumeric);
+            addOptional(p, 'verbose', false, @islogical);
+            parse(p, varargin{:});
+            obj.verbose = p.Results.verbose;
+            obj.comm = tcpip(p.Results.address, p.Results.port, ...
+                'InputBufferSize', 49*1024*2*2, ...
+                'OutputBufferSize', 49*1024*2*2, 'ByteOrder', 'bigEndian');
+            obj.comma = tcpip(p.Results.address, p.Results.port+1);
             obj.comma.BytesAvailableFcn = @(com,event)getInterrupts(obj,com);
             fopen(obj.comm);
             fopen(obj.comma);
@@ -146,7 +148,7 @@ classdef ML507 < handle
             fprintf(obj.comm, sprintf('do %s', which));
             status = fgetl(obj.comm);
             if strcmp(status, 'OK') ~= 1
-                me = MException('ML507:Error', 'Failure executing %s', which);
+                me = MException('ML507:Error', 'Failure executing %s (timeout)', which);
                 throw(me);
             end
         end
