@@ -45,7 +45,7 @@ classdef Trigger < handle
             % FIRE  Fire the manual trigger
             % 
             % See also ARM.
-            obj.ml.do('trigger/fire');
+            obj.ml.do('trigger/int');
         end
         
         function value = get.type(obj)
