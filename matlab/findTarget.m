@@ -1,4 +1,4 @@
-function [ Gl, mul ] = findTarget( ml507, target, Gl_fun, p, status )
+function [ Gl, mul ] = findTarget( ml507, target, Gl_fun, p )
     if target == 0
         mul = 0;
         diff = 0;
@@ -23,8 +23,6 @@ function [ Gl, mul ] = findTarget( ml507, target, Gl_fun, p, status )
         else
             diff = target/Gl;
         end
-        
-        status();
         
         if (target == 0 && abs(diff) < 0.001) || ...
            (abs(abs(diff) - 1) < 0.001 && abs(angle(diff)/pi*180) < 0.25)
