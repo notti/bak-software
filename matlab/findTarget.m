@@ -1,11 +1,16 @@
-function [ Gl, mul ] = findTarget( ml507, target, Gl_fun, p )
+function [ Gl, mul ] = findTarget( ml507, target, Gl_fun, p, mul)
     if target == 0
-        mul = 0;
+        if nargin < 5
+            mul = 0;
+        end
         diff = 0;
     else
-        mul = 32767;
+        if nargin < 5
+            mul = 32767;
+        end
         diff = 1;
     end
+    
     while true
         if target == 0
             mul = mul + diff*32767;
