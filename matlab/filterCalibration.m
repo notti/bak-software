@@ -37,16 +37,18 @@ vna.continuous(201, 100e-3);
 
 ml507.H = int16(H_orig.*32767./max([max(real(H_orig)) max(imag(H_orig))]));
 
-targets = [-1 1 1i -1i];
+targets = [-1 1 0.5*exp(1i*pi*3/4) 0.5*exp(-1i*pi/4)];
 freqs = (-13:13)*1e6;
 
 multipliers = zeros(length(freqs), length(targets));
+trajectories = cell(length(freqs), length(targets));
 
 tic
     for i = 1:length(freqs)
         vna.freq = freqs(i) + center;
         for j = 1:length(targets)
-            [~, mul] = findTarget(ml507, targets(j), @()1/mean(vna.y), 0.1);
+            [~, mul, traj] = findTarget(ml507, targets(j), @()1/mean(vna.y), 0.1);
+            trajectories{i,j} = traj;
             multipliers(i,j) = mul./(targets(j)*32767);
             fprintf('%d/%d\n', (i-1)*length(targets)+j, length(freqs)*length(targets));
         end
@@ -97,4 +99,14 @@ toc
 for i = 1:size(results, 1)
     subplot(2,3,i);
     smithchart(reshape(results(i,:,:,:),[size(results,2)*size(results,3) size(results,4)]).');
+end
+
+%%
+
+forcedpoints = [0.5*exp(1i*pi*3/4) -0.5*exp(1i*pi*3/4) 1*exp(1i*pi*3/4) 0.8*exp(1i*pi) -0.8*exp(1i*pi) -0.8*exp(-1i*pi/4) 0.8*exp(-1i*pi/4) 0.8*exp(-1i*pi/2) 0.8*exp(-1i*3*pi/4) 0.8*exp(-1i*pi)];
+forcedtrajectories = cell(length(forcedpoints),1);
+
+for i = 1:length(forcedpoints)
+    [~,~,c] = findTarget(ml507, forcedpoints(i), @()1/mean(vna.y), 0.1);
+    forcedtrajectories{i} = c;
 end

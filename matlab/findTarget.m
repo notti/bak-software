@@ -1,4 +1,4 @@
-function [ Gl, mul ] = findTarget( ml507, target, Gl_fun, p, mul)
+function [ Gl, mul, traj ] = findTarget( ml507, target, Gl_fun, p, mul)
     if target == 0
         if nargin < 5
             mul = 0;
@@ -10,6 +10,8 @@ function [ Gl, mul ] = findTarget( ml507, target, Gl_fun, p, mul)
         end
         diff = 1;
     end
+    
+    traj = [];
     
     while true
         if target == 0
@@ -23,6 +25,7 @@ function [ Gl, mul ] = findTarget( ml507, target, Gl_fun, p, mul)
         pause(p);
 
         Gl = 1/Gl_fun();
+        traj(end+1) = Gl;
         if target == 0
             diff = Gl;
         else
