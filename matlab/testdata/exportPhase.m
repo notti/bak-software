@@ -1,0 +1,10 @@
+mkdir('phase');
+load('phasedrift.mat');
+result(:,1) = (result(:,1)-result(1,1))*24*3600;
+result(:,2) = unwrap(angle(result(:,2)))*180/pi;
+dlmwrite('phase/single', result, '\t');
+clear;
+load('phasedriftAll.mat');
+res(:,1) = (res(:,1)-res(1,1))*24*3600;
+res(:,2:5) = unwrap(res(:,2:5))*180/pi;
+dlmwrite('phase/all', res, '\t');
