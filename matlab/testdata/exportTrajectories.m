@@ -1,10 +1,13 @@
 load('measuredFilter.mat');
 
 mkdir('filter');
+f=100e6*((-4096/2+1):(4096/2))/4096;
+dlmwrite('filter/H.data', [f' abs(fftshift(H_orig)).' 180/pi*unwrap(angle(fftshift(H_orig))).'],'\t');
 for i = 1:numtargets
     target = targets(i);
     target = sprintf('filter/%1.1f,%1.0f', abs(target), angle(target)/pi*180);
     mkdir(target);
+    dlmwrite(sprintf('%s/H.data',target), [f' abs(fftshift(H(i,:))).' 180/pi*unwrap(angle(fftshift(H(i,:)))).'],'\t');
     for j = 1:size(results, 2)
         for k = 1:size(results, 3)
             dlmwrite(sprintf('%s/%d,%d.data',target,j,k),reshape([real(results(i,j,k,:)) imag(results(i,j,k,:))],2,size(results,4)).','\t');
